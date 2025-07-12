@@ -21,6 +21,7 @@ const ClassificationManager = require('./managers/ClassificationManager');
 const DatabaseManager = require('./utils/DatabaseManager');
 const CacheManager = require('./utils/CacheManager');
 const NLPProcessor = require('./processors/NLPProcessor');
+const TenantModelManager = require('./managers/TenantModelManager');
 
 // 创建Express应用
 const app = express();
@@ -205,12 +206,14 @@ app.post('/analyze', authMiddleware, async (req, res) => {
 app.use('/api/classify', authMiddleware, require('./routes/classify'));
 app.use('/api/models', authMiddleware, require('./routes/models'));
 app.use('/api/analytics', authMiddleware, require('./routes/analytics'));
+app.use('/api/tenant', authMiddleware, require('./routes/tenant'));
 
 // 全局变量
 let classificationManager;
 let nlpProcessor;
 let dbManager;
 let cacheManager;
+let tenantModelManager;
 
 // 初始化服务
 async function initializeService() {
@@ -231,6 +234,16 @@ async function initializeService() {
     nlpProcessor = new NLPProcessor();
     await nlpProcessor.initialize();
     logger.info('NLP processor initialized');
+
+    // 初始化租户模型管理器
+    tenantModelManager = new TenantModelManager({
+      dbManager,
+      cacheManager,
+      config,
+      modelsPath: config.ai?.modelsPath || './models'
+    });
+    await tenantModelManager.initialize();
+    logger.info('Tenant model manager initialized');
 
     // 初始化分类器
     const classifiers = {};
@@ -270,6 +283,7 @@ async function initializeService() {
     app.locals.nlpProcessor = nlpProcessor;
     app.locals.dbManager = dbManager;
     app.locals.cacheManager = cacheManager;
+    app.locals.tenantModelManager = tenantModelManager;
 
     logger.info('AI Service initialized successfully');
   } catch (error) {
@@ -305,6 +319,12 @@ async function startServer() {
           if (classificationManager) {
             await classificationManager.shutdown();
             logger.info('Classification manager shut down');
+          }
+
+          // 关闭租户模型管理器
+          if (tenantModelManager) {
+            await tenantModelManager.shutdown();
+            logger.info('Tenant model manager shut down');
           }
 
           // 关闭数据库连接
