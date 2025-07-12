@@ -18,6 +18,7 @@ const SlackBot = require('./integrations/SlackBot');
 const WhatsAppBot = require('./integrations/WhatsAppBot');
 const LineBot = require('./integrations/LineBot');
 const WeWorkBot = require('./integrations/WeWorkBot');
+const IntercomBot = require('./integrations/IntercomBot');
 const BotManager = require('./managers/BotManager');
 
 // 导入工具
@@ -343,6 +344,32 @@ app.get('/webhook/wework/:botId', (req, res) => {
   }
 });
 
+// Webhook处理端点 - Intercom
+app.post('/webhook/intercom/:botId', async (req, res) => {
+  try {
+    const { botId } = req.params;
+    const data = req.body;
+    const signature = req.headers['x-hub-signature-256'];
+    const timestamp = req.headers['x-timestamp'];
+    
+    logger.info('Received Intercom webhook', {
+      botId,
+      topic: data.topic,
+      signature: signature ? 'present' : 'missing'
+    });
+    
+    await botManager.handleWebhook('intercom', botId, data, {
+      signature,
+      timestamp
+    });
+    
+    res.status(200).json({ status: 'ok' });
+  } catch (error) {
+    logger.error('Intercom webhook error:', error);
+    res.status(500).json({ error: 'Webhook processing failed' });
+  }
+});
+
 // API路由
 app.use('/api/bots', authMiddleware, require('./routes/bots'));
 app.use('/api/messages', authMiddleware, require('./routes/messages'));
@@ -382,6 +409,7 @@ async function initializeService() {
     botManager.registerBotType('whatsapp', WhatsAppBot);
     botManager.registerBotType('line', LineBot);
     botManager.registerBotType('wework', WeWorkBot);
+    botManager.registerBotType('intercom', IntercomBot);
 
     await botManager.initialize();
     logger.info('Bot manager initialized');
@@ -424,6 +452,7 @@ async function startServer() {
       logger.info(`  WhatsApp: http://${HOST}:${PORT}/webhook/whatsapp/:botId`);
       logger.info(`  Line: http://${HOST}:${PORT}/webhook/line/:botId`);
       logger.info(`  WeWork: http://${HOST}:${PORT}/webhook/wework/:botId`);
+      logger.info(`  Intercom: http://${HOST}:${PORT}/webhook/intercom/:botId`);
     });
 
     // 优雅关闭

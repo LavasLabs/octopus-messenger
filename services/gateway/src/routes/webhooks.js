@@ -1133,4 +1133,300 @@ router.get('/wework', asyncHandler(async (req, res) => {
   }
 }));
 
+/**
+ * @swagger
+ * /api/webhooks/intercom:
+ *   post:
+ *     summary: Intercom webhook endpoint
+ *     tags: [Webhooks]
+ *     parameters:
+ *       - in: header
+ *         name: X-Hub-Signature-256
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: Webhook signature for verification
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ *       401:
+ *         description: Invalid signature
+ *       500:
+ *         description: Processing error
+ */
+router.post('/intercom', asyncHandler(async (req, res) => {
+  const signature = req.headers['x-hub-signature-256'];
+  const timestamp = req.headers['x-timestamp'] || Date.now();
+  const body = JSON.stringify(req.body);
+
+  // 获取bot配置
+  const botQuery = `
+    SELECT bc.*, t.name as tenant_name
+    FROM bot_configs bc
+    JOIN tenants t ON bc.tenant_id = t.id
+    WHERE bc.platform = 'intercom' AND bc.is_active = true
+  `;
+  
+  const botResult = await pool.query(botQuery);
+  
+  if (botResult.rows.length === 0) {
+    throw new AppError('No active Intercom bot found', 404);
+  }
+
+  const botConfig = botResult.rows[0];
+  const webhook = req.body;
+
+  logger.info('Received Intercom webhook', {
+    tenantId: botConfig.tenant_id,
+    topic: webhook.topic,
+    type: webhook.data?.type,
+    conversationId: webhook.data?.item?.id
+  });
+
+  // 验证webhook（如果配置了secret）
+  if (botConfig.webhook_secret && signature) {
+    const crypto = require('crypto');
+    const expectedSignature = crypto
+      .createHmac('sha256', botConfig.webhook_secret)
+      .update(body)
+      .digest('hex');
+    
+    if (signature !== expectedSignature) {
+      throw new AppError('Invalid signature', 401);
+    }
+  }
+
+  try {
+    // 处理不同类型的webhook事件
+    const eventType = webhook.topic;
+    const eventData = webhook.data;
+
+    let messageData = null;
+
+    switch (eventType) {
+      case 'conversation.user.created':
+      case 'conversation.user.replied':
+        messageData = await processIntercomConversationMessage(eventData, botConfig);
+        break;
+
+      case 'conversation.admin.replied':
+        // 管理员回复，可以选择是否处理
+        if (botConfig.process_admin_replies) {
+          messageData = await processIntercomAdminMessage(eventData, botConfig);
+        }
+        break;
+
+      case 'conversation.admin.assigned':
+        await processIntercomAssignment(eventData, botConfig);
+        break;
+
+      case 'conversation.admin.closed':
+        await processIntercomClose(eventData, botConfig);
+        break;
+
+      case 'contact.created':
+      case 'contact.signed_up':
+        await processIntercomContact(eventData, botConfig);
+        break;
+
+      default:
+        logger.debug('Unhandled Intercom webhook event', {
+          topic: eventType,
+          tenantId: botConfig.tenant_id
+        });
+    }
+
+    // 如果有消息数据，发送到消息处理器
+    if (messageData) {
+      await processMessage(messageData, botConfig);
+    }
+
+    res.json({ status: 'ok', processed: !!messageData });
+
+  } catch (error) {
+    logger.error('Intercom webhook processing failed', {
+      tenantId: botConfig.tenant_id,
+      error: error.message,
+      topic: webhook.topic
+    });
+
+    res.status(500).json({
+      status: 'error', 
+      error: error.message
+    });
+  }
+}));
+
+// 处理Intercom对话消息
+async function processIntercomConversationMessage(eventData, botConfig) {
+  const conversation = eventData.item;
+  const messageSource = conversation.source;
+
+  if (!messageSource || !messageSource.body) {
+    return null; // 没有消息内容
+  }
+
+  const messageData = {
+    id: uuidv4(),
+    externalId: conversation.id,
+    platform: 'intercom',
+    messageType: messageSource.type || 'conversation',
+    content: messageSource.body.replace(/<[^>]*>/g, ''), // 去除HTML标签
+    htmlContent: messageSource.body,
+    mediaUrl: null,
+    senderId: messageSource.author?.id || 'unknown',
+    senderUsername: messageSource.author?.email || '',
+    senderName: messageSource.author?.name || '',
+    chatId: conversation.id,
+    chatTitle: conversation.title || '',
+    chatType: 'conversation',
+    rawData: conversation,
+    receivedAt: new Date().toISOString(),
+    tenantId: botConfig.tenant_id,
+    botConfigId: botConfig.id,
+    
+    // Intercom特有字段
+    intercom: {
+      conversationId: conversation.id,
+      state: conversation.state,
+      priority: conversation.priority,
+      assigneeId: conversation.admin_assignee_id,
+      teamId: conversation.team_assignee_id,
+      tags: conversation.tags?.tags?.map(tag => tag.name) || [],
+      contacts: conversation.contacts?.contacts || [],
+      createdAt: conversation.created_at,
+      updatedAt: conversation.updated_at,
+      waitingSince: conversation.waiting_since,
+      open: conversation.open,
+      read: conversation.read
+    }
+  };
+
+  // 处理附件
+  if (messageSource.attachments && messageSource.attachments.length > 0) {
+    const firstAttachment = messageSource.attachments[0];
+    if (firstAttachment.type === 'upload') {
+      messageData.mediaUrl = firstAttachment.url;
+      messageData.messageType = 'file';
+    }
+  }
+
+  // 保存消息到数据库
+  const insertQuery = `
+    INSERT INTO messages (
+      id, tenant_id, bot_config_id, external_id, platform, message_type,
+      content, media_url, sender_id, sender_username, sender_name,
+      chat_id, chat_title, chat_type, raw_data, received_at
+    ) VALUES (
+      $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+    )
+  `;
+
+  await pool.query(insertQuery, [
+    messageData.id, messageData.tenantId, messageData.botConfigId,
+    messageData.externalId, messageData.platform, messageData.messageType,
+    messageData.content, messageData.mediaUrl, messageData.senderId,
+    messageData.senderUsername, messageData.senderName, messageData.chatId,
+    messageData.chatTitle, messageData.chatType, messageData.rawData,
+    messageData.receivedAt
+  ]);
+
+  logger.info('Intercom conversation message processed', {
+    messageId: messageData.id,
+    tenantId: botConfig.tenant_id,
+    conversationId: conversation.id,
+    messageType: messageData.messageType
+  });
+
+  return messageData;
+}
+
+// 处理Intercom管理员消息
+async function processIntercomAdminMessage(eventData, botConfig) {
+  const conversation = eventData.item;
+  const messageSource = conversation.source;
+
+  if (!messageSource || !messageSource.body) {
+    return null;
+  }
+
+  const messageData = {
+    id: uuidv4(),
+    externalId: `${conversation.id}_admin`,
+    platform: 'intercom',
+    messageType: 'admin_reply',
+    content: messageSource.body.replace(/<[^>]*>/g, ''),
+    htmlContent: messageSource.body,
+    senderId: messageSource.author?.id || 'admin',
+    senderUsername: messageSource.author?.email || '',
+    senderName: messageSource.author?.name || 'Admin',
+    chatId: conversation.id,
+    chatTitle: conversation.title || '',
+    chatType: 'conversation',
+    rawData: conversation,
+    receivedAt: new Date().toISOString(),
+    tenantId: botConfig.tenant_id,
+    botConfigId: botConfig.id,
+    isFromAdmin: true
+  };
+
+  logger.info('Intercom admin message processed', {
+    messageId: messageData.id,
+    tenantId: botConfig.tenant_id,
+    conversationId: conversation.id,
+    adminId: messageSource.author?.id
+  });
+
+  return messageData;
+}
+
+// 处理Intercom分配事件
+async function processIntercomAssignment(eventData, botConfig) {
+  const conversation = eventData.item;
+  
+  logger.info('Intercom conversation assigned', {
+    tenantId: botConfig.tenant_id,
+    conversationId: conversation.id,
+    adminId: conversation.admin_assignee_id,
+    teamId: conversation.team_assignee_id
+  });
+
+  // 可以在这里触发自动化工作流或通知
+  // 例如：通知被分配的管理员
+}
+
+// 处理Intercom关闭事件
+async function processIntercomClose(eventData, botConfig) {
+  const conversation = eventData.item;
+  
+  logger.info('Intercom conversation closed', {
+    tenantId: botConfig.tenant_id,
+    conversationId: conversation.id,
+    closedBy: eventData.initiator
+  });
+
+  // 可以在这里触发关闭后的工作流
+  // 例如：发送满意度调查
+}
+
+// 处理Intercom联系人事件
+async function processIntercomContact(eventData, botConfig) {
+  const contact = eventData.item;
+  
+  logger.info('Intercom contact event', {
+    tenantId: botConfig.tenant_id,
+    contactId: contact.id,
+    email: contact.email,
+    eventType: eventData.type
+  });
+
+  // 可以在这里同步联系人信息到CRM或其他系统
+}
+
 module.exports = router; 
