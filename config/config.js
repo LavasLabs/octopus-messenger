@@ -98,6 +98,15 @@ const config = {
       appToken: process.env.SLACK_APP_TOKEN || '',
       socketMode: process.env.SLACK_SOCKET_MODE === 'true',
     },
+    discord: {
+      botToken: process.env.DISCORD_BOT_TOKEN || '',
+      clientId: process.env.DISCORD_CLIENT_ID || '',
+      clientSecret: process.env.DISCORD_CLIENT_SECRET || '',
+      publicKey: process.env.DISCORD_PUBLIC_KEY || '',
+      guildId: process.env.DISCORD_GUILD_ID || '',
+      webhookUrl: process.env.DISCORD_WEBHOOK_URL || '',
+      apiUrl: 'https://discord.com/api/v10',
+    },
     openai: {
       apiKey: process.env.OPENAI_API_KEY || '',
       model: process.env.OPENAI_MODEL || 'gpt-4',

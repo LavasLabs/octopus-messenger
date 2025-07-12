@@ -37,6 +37,7 @@
     "telegram",
     "whatsapp",
     "slack",
+    "discord",
     "ai",
     "task-management",
     "lark",
@@ -71,7 +72,9 @@
     "uuid": "^9.0.0",
     "jsonwebtoken": "^9.0.0",
     "bcryptjs": "^2.4.3",
-    "rate-limiter-flexible": "^2.4.1"
+    "rate-limiter-flexible": "^2.4.1",
+    "discord.js": "^14.14.1",
+    "tweetnacl": "^1.0.3"
   },
   "engines": {
     "node": ">=18.0.0",
