@@ -8,6 +8,7 @@ const config = require('../../../../config/config');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const { authenticateApiKey } = require('../middleware/auth');
 const { logger } = require('../utils/logger');
+const AIServiceClient = require('../utils/AIServiceClient');
 
 const router = express.Router();
 
@@ -69,37 +70,163 @@ const verifyWeWorkSignature = (timestamp, nonce, signature, token) => {
   return hash === signature;
 };
 
-// 处理消息的通用函数
+// 处理消息的通用函数（集成AI分类）
 const processMessage = async (messageData, botConfig) => {
   try {
+    let classification = null;
+    
+    // 如果消息有文本内容，进行AI分类
+    if (messageData.content && messageData.content.trim()) {
+      try {
+        logger.info('Starting AI classification', {
+          messageId: messageData.id,
+          tenantId: messageData.tenantId,
+          platform: messageData.platform,
+          contentLength: messageData.content.length
+        });
+
+        // 创建AI服务客户端
+        const aiClient = new AIServiceClient(messageData.tenantId);
+        
+        // 使用智能分类（带回退机制）
+        const classificationResult = await aiClient.classifyWithFallback({
+          id: messageData.id,
+          content: messageData.content,
+          platform: messageData.platform,
+          userId: messageData.senderId,
+          type: messageData.messageType
+        });
+
+        classification = classificationResult.classification;
+        
+        logger.info('AI classification completed', {
+          messageId: messageData.id,
+          tenantId: messageData.tenantId,
+          category: classification.category,
+          confidence: classification.confidence,
+          usedCustomModel: classification.usedCustomModel,
+          mode: classification.mode,
+          fallback: classificationResult.fallback || false
+        });
+
+        // 更新消息记录中的分类信息
+        const updateQuery = `
+          UPDATE messages 
+          SET classification = $1, classification_confidence = $2, 
+              ai_model_used = $3, classified_at = NOW()
+          WHERE id = $4
+        `;
+        
+        await pool.query(updateQuery, [
+          JSON.stringify(classification),
+          classification.confidence,
+          classification.classifier || 'unknown',
+          messageData.id
+        ]);
+
+      } catch (aiError) {
+        logger.error('AI classification failed', {
+          messageId: messageData.id,
+          tenantId: messageData.tenantId,
+          error: aiError.message,
+          fallbackUsed: false
+        });
+        
+        // AI分类失败不影响消息处理，继续处理消息
+        classification = {
+          category: 'unclassified',
+          confidence: 0,
+          error: aiError.message,
+          classifier: 'fallback'
+        };
+      }
+    } else {
+      logger.debug('Skipping AI classification for non-text message', {
+        messageId: messageData.id,
+        messageType: messageData.messageType
+      });
+    }
+
+    // 将分类结果添加到消息数据中
+    const enrichedMessageData = {
+      ...messageData,
+      classification
+    };
+
     // 发送消息到消息处理服务
     const messageProcessorUrl = `http://localhost:${config.services.messageProcessor.port}/process`;
     
     const response = await axios.post(messageProcessorUrl, {
-      message: messageData,
+      message: enrichedMessageData,
       botConfig: botConfig
     }, {
       headers: {
         'Content-Type': 'application/json',
         'X-Tenant-ID': botConfig.tenant_id
-      }
+      },
+      timeout: 15000 // 15秒超时
     });
 
     logger.info('Message sent to processor', {
       messageId: messageData.id,
       tenantId: botConfig.tenant_id,
       platform: messageData.platform,
+      classification: classification?.category,
       response: response.status
     });
 
-    return response.data;
+    return {
+      ...response.data,
+      classification
+    };
   } catch (error) {
     logger.error('Error processing message', {
       messageId: messageData.id,
       tenantId: botConfig.tenant_id,
-      error: error.message
+      error: error.message,
+      stack: error.stack
     });
     throw error;
+  }
+};
+
+// 处理高优先级消息（紧急分类）
+const processHighPriorityMessage = async (messageData, botConfig) => {
+  try {
+    // 高优先级消息的快速分类
+    const urgentKeywords = ['urgent', 'emergency', '紧急', '急', 'help', '帮助', 'error', '错误', 'bug'];
+    const content = messageData.content.toLowerCase();
+    
+    let isUrgent = false;
+    for (const keyword of urgentKeywords) {
+      if (content.includes(keyword)) {
+        isUrgent = true;
+        break;
+      }
+    }
+
+    if (isUrgent) {
+      logger.info('High priority message detected', {
+        messageId: messageData.id,
+        tenantId: messageData.tenantId,
+        content: messageData.content.substring(0, 100)
+      });
+
+      // 立即处理，跳过队列
+      return await processMessage(messageData, botConfig);
+    } else {
+      // 正常处理
+      return await processMessage(messageData, botConfig);
+    }
+  } catch (error) {
+    logger.error('Error in high priority message processing', {
+      messageId: messageData.id,
+      tenantId: botConfig.tenant_id,
+      error: error.message
+    });
+    
+    // 回退到正常处理
+    return await processMessage(messageData, botConfig);
   }
 };
 

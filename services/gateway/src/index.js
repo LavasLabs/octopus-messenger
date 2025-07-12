@@ -97,6 +97,7 @@ app.use('/api/bots', authMiddleware, require('./routes/bots'));
 app.use('/api/messages', authMiddleware, require('./routes/messages'));
 app.use('/api/tasks', authMiddleware, require('./routes/tasks'));
 app.use('/api/classifications', authMiddleware, require('./routes/classifications'));
+app.use('/api/ai', authMiddleware, require('./routes/ai'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 
 // 微服务代理配置
