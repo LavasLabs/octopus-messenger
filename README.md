@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- 🤖 多平台Bot支持（Telegram、WhatsApp、Slack）
+- 🤖 多平台Bot支持（Telegram、WhatsApp、Slack、Discord）
 - 🧠 AI智能分类和过滤（Claude、OpenAI）
 - 📝 多CRM系统集成（16+主流CRM支持）
 - 🏗️ 微服务架构设计

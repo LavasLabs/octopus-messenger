@@ -40,6 +40,21 @@ const verifySlackSignature = (body, timestamp, signature, secret) => {
   return `v0=${hash}` === signature;
 };
 
+// 验证Discord签名
+const verifyDiscordSignature = (body, timestamp, signature, publicKey) => {
+  const nacl = require('tweetnacl');
+  
+  try {
+    const sig = Buffer.from(signature, 'hex');
+    const msg = Buffer.from(timestamp + body);
+    const key = Buffer.from(publicKey, 'hex');
+    
+    return nacl.sign.detached.verify(msg, sig, key);
+  } catch (error) {
+    return false;
+  }
+};
+
 // 处理消息的通用函数
 const processMessage = async (messageData, botConfig) => {
   try {
@@ -491,6 +506,197 @@ router.post('/slack', asyncHandler(async (req, res) => {
         messageType: messageData.messageType
       });
     }
+  }
+
+  res.json({ status: 'ok' });
+}));
+
+/**
+ * @swagger
+ * /api/webhooks/discord:
+ *   post:
+ *     summary: Discord webhook endpoint
+ *     tags: [Webhooks]
+ *     parameters:
+ *       - in: header
+ *         name: X-Signature-Ed25519
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: header
+ *         name: X-Signature-Timestamp
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ *       401:
+ *         description: Invalid signature
+ */
+router.post('/discord', asyncHandler(async (req, res) => {
+  const signature = req.headers['x-signature-ed25519'];
+  const timestamp = req.headers['x-signature-timestamp'];
+  const body = JSON.stringify(req.body);
+
+  // 获取bot配置
+  const botQuery = `
+    SELECT bc.*, t.name as tenant_name
+    FROM bot_configs bc
+    JOIN tenants t ON bc.tenant_id = t.id
+    WHERE bc.platform = 'discord' AND bc.is_active = true
+  `;
+  
+  const botResult = await pool.query(botQuery);
+  
+  if (botResult.rows.length === 0) {
+    throw new AppError('No active Discord bot found', 404);
+  }
+
+  const botConfig = botResult.rows[0];
+
+  // 验证签名
+  if (botConfig.webhook_secret && !verifyDiscordSignature(body, timestamp, signature, botConfig.webhook_secret)) {
+    throw new AppError('Invalid signature', 401);
+  }
+
+  const interaction = req.body;
+  
+  // 处理Ping事件
+  if (interaction.type === 1) {
+    return res.json({ type: 1 });
+  }
+
+  // 处理应用命令
+  if (interaction.type === 2) {
+    const commandData = {
+      id: uuidv4(),
+      externalId: interaction.id,
+      platform: 'discord',
+      messageType: 'command',
+      content: `/${interaction.data.name}`,
+      mediaUrl: null,
+      senderId: interaction.member ? interaction.member.user.id : interaction.user.id,
+      senderUsername: interaction.member ? interaction.member.user.username : interaction.user.username,
+      senderName: interaction.member ? 
+                 `${interaction.member.user.global_name || interaction.member.user.username}` :
+                 `${interaction.user.global_name || interaction.user.username}`,
+      chatId: interaction.channel_id,
+      chatTitle: interaction.guild_id ? 'Guild Channel' : 'DM',
+      chatType: interaction.guild_id ? 'guild' : 'dm',
+      rawData: interaction,
+      receivedAt: new Date().toISOString(),
+      tenantId: botConfig.tenant_id,
+      botConfigId: botConfig.id
+    };
+
+    // 保存命令到数据库
+    const insertQuery = `
+      INSERT INTO messages (
+        id, tenant_id, bot_config_id, external_id, platform, message_type,
+        content, media_url, sender_id, sender_username, sender_name,
+        chat_id, chat_title, chat_type, raw_data, received_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+      )
+    `;
+
+    await pool.query(insertQuery, [
+      commandData.id, commandData.tenantId, commandData.botConfigId,
+      commandData.externalId, commandData.platform, commandData.messageType,
+      commandData.content, commandData.mediaUrl, commandData.senderId,
+      commandData.senderUsername, commandData.senderName, commandData.chatId,
+      commandData.chatTitle, commandData.chatType, commandData.rawData,
+      commandData.receivedAt
+    ]);
+
+    // 发送到消息处理服务
+    await processMessage(commandData, botConfig);
+
+    logger.info('Discord command processed', {
+      messageId: commandData.id,
+      tenantId: botConfig.tenant_id,
+      chatId: commandData.chatId,
+      command: interaction.data.name
+    });
+
+    // 返回确认响应
+    return res.json({
+      type: 4,
+      data: {
+        content: '命令已接收并处理',
+        flags: 64 // 仅对用户可见
+      }
+    });
+  }
+
+  // 处理消息组件交互（按钮点击等）
+  if (interaction.type === 3) {
+    const interactionData = {
+      id: uuidv4(),
+      externalId: interaction.id,
+      platform: 'discord',
+      messageType: 'interaction',
+      content: `interaction:${interaction.data.custom_id}`,
+      mediaUrl: null,
+      senderId: interaction.member ? interaction.member.user.id : interaction.user.id,
+      senderUsername: interaction.member ? interaction.member.user.username : interaction.user.username,
+      senderName: interaction.member ? 
+                 `${interaction.member.user.global_name || interaction.member.user.username}` :
+                 `${interaction.user.global_name || interaction.user.username}`,
+      chatId: interaction.channel_id,
+      chatTitle: interaction.guild_id ? 'Guild Channel' : 'DM',
+      chatType: interaction.guild_id ? 'guild' : 'dm',
+      rawData: interaction,
+      receivedAt: new Date().toISOString(),
+      tenantId: botConfig.tenant_id,
+      botConfigId: botConfig.id
+    };
+
+    // 保存交互到数据库
+    const insertQuery = `
+      INSERT INTO messages (
+        id, tenant_id, bot_config_id, external_id, platform, message_type,
+        content, media_url, sender_id, sender_username, sender_name,
+        chat_id, chat_title, chat_type, raw_data, received_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+      )
+    `;
+
+    await pool.query(insertQuery, [
+      interactionData.id, interactionData.tenantId, interactionData.botConfigId,
+      interactionData.externalId, interactionData.platform, interactionData.messageType,
+      interactionData.content, interactionData.mediaUrl, interactionData.senderId,
+      interactionData.senderUsername, interactionData.senderName, interactionData.chatId,
+      interactionData.chatTitle, interactionData.chatType, interactionData.rawData,
+      interactionData.receivedAt
+    ]);
+
+    // 发送到消息处理服务
+    await processMessage(interactionData, botConfig);
+
+    logger.info('Discord interaction processed', {
+      messageId: interactionData.id,
+      tenantId: botConfig.tenant_id,
+      chatId: interactionData.chatId,
+      customId: interaction.data.custom_id
+    });
+
+    // 返回确认响应
+    return res.json({
+      type: 4,
+      data: {
+        content: '交互已处理',
+        flags: 64 // 仅对用户可见
+      }
+    });
   }
 
   res.json({ status: 'ok' });
