@@ -37,7 +37,8 @@
     "franc": "^6.0.0",
     "moment": "^2.29.4",
     "lodash": "^4.17.21",
-    "validator": "^13.9.0"
+    "validator": "^13.9.0",
+    "jsonwebtoken": "^9.0.0"
   },
   "devDependencies": {
     "@types/express": "^4.17.17",
