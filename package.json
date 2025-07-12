@@ -1,0 +1,88 @@
+{
+  "name": "octopus-messenger",
+  "version": "1.0.0",
+  "description": "多平台消息处理和任务管理系统",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:gateway\" \"npm run dev:message-processor\" \"npm run dev:ai-service\" \"npm run dev:task-service\" \"npm run dev:bot-manager\" \"npm run dev:admin-panel\"",
+    "dev:gateway": "cd services/gateway && npm run dev",
+    "dev:message-processor": "cd services/message-processor && npm run dev",
+    "dev:ai-service": "cd services/ai-service && npm run dev",
+    "dev:task-service": "cd services/task-service && npm run dev",
+    "dev:bot-manager": "cd services/bot-manager && npm run dev",
+    "dev:admin-panel": "cd services/admin-panel && npm run dev",
+    "build": "npm run build:gateway && npm run build:message-processor && npm run build:ai-service && npm run build:task-service && npm run build:bot-manager && npm run build:admin-panel",
+    "build:gateway": "cd services/gateway && npm run build",
+    "build:message-processor": "cd services/message-processor && npm run build",
+    "build:ai-service": "cd services/ai-service && npm run build",
+    "build:task-service": "cd services/task-service && npm run build",
+    "build:bot-manager": "cd services/bot-manager && npm run build",
+    "build:admin-panel": "cd services/admin-panel && npm run build",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint . --ext .js,.ts,.tsx",
+    "lint:fix": "eslint . --ext .js,.ts,.tsx --fix",
+    "db:migrate": "cd database && npm run migrate",
+    "db:seed": "cd database && npm run seed",
+    "db:reset": "cd database && npm run reset",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "setup": "npm install && npm run db:migrate && npm run db:seed"
+  },
+  "keywords": [
+    "messenger",
+    "bot",
+    "telegram",
+    "whatsapp",
+    "slack",
+    "ai",
+    "task-management",
+    "lark",
+    "microservices"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "concurrently": "^8.2.0",
+    "eslint": "^8.40.0",
+    "jest": "^29.5.0",
+    "nodemon": "^3.0.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.0",
+    "express": "^4.18.0",
+    "cors": "^2.8.5",
+    "helmet": "^7.0.0",
+    "morgan": "^1.10.0",
+    "winston": "^3.9.0",
+    "joi": "^17.9.0",
+    "redis": "^4.6.0",
+    "pg": "^8.11.0",
+    "mongodb": "^5.6.0",
+    "axios": "^1.4.0",
+    "uuid": "^9.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "bcryptjs": "^2.4.3",
+    "rate-limiter-flexible": "^2.4.1"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/your-org/octopus-messenger.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-org/octopus-messenger/issues"
+  },
+  "homepage": "https://github.com/your-org/octopus-messenger#readme"
+} 
