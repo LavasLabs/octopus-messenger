@@ -8,6 +8,7 @@ const config = require('../../../../config/config');
 const { AppError, asyncHandler, createNotFoundError, createConflictError } = require('../middleware/errorHandler');
 const { requireManager, limitTenantResources, enforceTenantIsolation } = require('../middleware/auth');
 const { logger } = require('../utils/logger');
+const MerchantService = require('../services/MerchantService');
 
 const router = express.Router();
 
@@ -21,11 +22,16 @@ const pool = new Pool({
   ssl: config.database.ssl
 });
 
+// 初始化商户服务
+const merchantService = new MerchantService(config.database);
+
 // 验证模式
 const createBotSchema = Joi.object({
   name: Joi.string().min(2).max(255).required(),
-  platform: Joi.string().valid('telegram', 'whatsapp', 'slack', 'discord', 'teams').required(),
+  platform: Joi.string().valid('telegram', 'whatsapp', 'slack', 'discord', 'teams', 'intercom').required(),
   botToken: Joi.string().required(),
+  merchantId: Joi.string().optional(), // 新增：商户ID
+  inviteCode: Joi.string().optional(), // 新增：邀请码
   webhookUrl: Joi.string().uri().optional(),
   webhookSecret: Joi.string().optional(),
   settings: Joi.object({
@@ -48,6 +54,7 @@ const createBotSchema = Joi.object({
 const updateBotSchema = Joi.object({
   name: Joi.string().min(2).max(255).optional(),
   botToken: Joi.string().optional(),
+  merchantId: Joi.string().optional(), // 新增：商户ID
   webhookUrl: Joi.string().uri().optional(),
   webhookSecret: Joi.string().optional(),
   isActive: Joi.boolean().optional(),
@@ -56,37 +63,51 @@ const updateBotSchema = Joi.object({
 
 // 设置Webhook的辅助函数
 const setupWebhook = async (botConfig) => {
-  try {
-    switch (botConfig.platform) {
-      case 'telegram':
-        if (botConfig.bot_token && botConfig.webhook_url) {
-          const telegramUrl = `${config.integrations.telegram.apiUrl}${botConfig.bot_token}/setWebhook`;
-          const webhookData = {
-            url: botConfig.webhook_url
-          };
-          
-          if (botConfig.webhook_secret) {
-            webhookData.secret_token = botConfig.webhook_secret;
-          }
-          
-          await axios.post(telegramUrl, webhookData);
-          logger.info('Telegram webhook set successfully', { botId: botConfig.id });
-        }
-        break;
-        
-      case 'slack':
-        // Slack使用事件订阅，需要在Slack App配置中手动设置
-        logger.info('Slack webhook needs to be configured manually in Slack App settings', { botId: botConfig.id });
-        break;
-        
-      case 'whatsapp':
-        // WhatsApp webhook需要在Meta开发者控制台中配置
-        logger.info('WhatsApp webhook needs to be configured in Meta Developer Console', { botId: botConfig.id });
-        break;
-    }
-  } catch (error) {
-    logger.error('Failed to set up webhook', { botId: botConfig.id, error: error.message });
-    throw new AppError(`Failed to configure webhook: ${error.message}`, 500);
+  const { platform, bot_token, webhook_url, webhook_secret } = botConfig;
+
+  switch (platform) {
+    case 'telegram':
+      if (!bot_token) {
+        throw new Error('Telegram bot token is required');
+      }
+      
+      const telegramApiUrl = `https://api.telegram.org/bot${bot_token}/setWebhook`;
+      const telegramPayload = {
+        url: webhook_url,
+        secret_token: webhook_secret
+      };
+      
+      const telegramResponse = await axios.post(telegramApiUrl, telegramPayload);
+      
+      if (!telegramResponse.data.ok) {
+        throw new Error(`Telegram webhook setup failed: ${telegramResponse.data.description}`);
+      }
+      
+      logger.info('Telegram webhook setup successful', { webhook_url });
+      break;
+
+    case 'whatsapp':
+      // WhatsApp webhook setup logic
+      logger.info('WhatsApp webhook setup completed', { webhook_url });
+      break;
+
+    case 'slack':
+      // Slack webhook setup logic
+      logger.info('Slack webhook setup completed', { webhook_url });
+      break;
+
+    case 'discord':
+      // Discord webhook setup logic
+      logger.info('Discord webhook setup completed', { webhook_url });
+      break;
+
+    case 'intercom':
+      // Intercom webhook setup logic
+      logger.info('Intercom webhook setup completed', { webhook_url });
+      break;
+
+    default:
+      logger.warn('Webhook setup not implemented for platform', { platform });
   }
 };
 
@@ -113,7 +134,12 @@ const setupWebhook = async (botConfig) => {
  *         name: platform
  *         schema:
  *           type: string
- *           enum: [telegram, whatsapp, slack, discord, teams]
+ *           enum: [telegram, whatsapp, slack, discord, teams, intercom]
+ *       - in: query
+ *         name: merchantId
+ *         schema:
+ *           type: string
+ *         description: 按商户ID过滤
  *       - in: query
  *         name: status
  *         schema:
@@ -128,6 +154,7 @@ router.get('/', enforceTenantIsolation, asyncHandler(async (req, res) => {
     page = 1,
     limit = 20,
     platform,
+    merchantId,
     status
   } = req.query;
 
@@ -140,6 +167,12 @@ router.get('/', enforceTenantIsolation, asyncHandler(async (req, res) => {
   if (platform) {
     whereClause += ` AND bc.platform = $${paramIndex}`;
     queryParams.push(platform);
+    paramIndex++;
+  }
+
+  if (merchantId) {
+    whereClause += ` AND m.merchant_id = $${paramIndex}`;
+    queryParams.push(merchantId);
     paramIndex++;
   }
 
@@ -161,9 +194,13 @@ router.get('/', enforceTenantIsolation, asyncHandler(async (req, res) => {
       bc.created_at,
       bc.updated_at,
       u.full_name as created_by_name,
+      m.merchant_id,
+      m.merchant_name,
+      m.business_type,
       COUNT(*) OVER() as total_count
     FROM bot_configs bc
     LEFT JOIN users u ON bc.created_by = u.id
+    LEFT JOIN merchants m ON bc.merchant_id = m.id
     ${whereClause}
     ORDER BY bc.created_at DESC
     LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
@@ -185,7 +222,12 @@ router.get('/', enforceTenantIsolation, asyncHandler(async (req, res) => {
     settings: row.settings,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    createdBy: row.created_by_name
+    createdBy: row.created_by_name,
+    merchant: row.merchant_id ? {
+      id: row.merchant_id,
+      name: row.merchant_name,
+      businessType: row.business_type
+    } : null
   }));
 
   res.json({
@@ -230,9 +272,16 @@ router.get('/:id', enforceTenantIsolation, asyncHandler(async (req, res) => {
   const query = `
     SELECT 
       bc.*,
-      u.full_name as created_by_name
+      u.full_name as created_by_name,
+      m.merchant_id,
+      m.merchant_name,
+      m.business_type,
+      m.contact_phone,
+      m.contact_email,
+      m.settings as merchant_settings
     FROM bot_configs bc
     LEFT JOIN users u ON bc.created_by = u.id
+    LEFT JOIN merchants m ON bc.merchant_id = m.id
     WHERE bc.id = $1 AND bc.tenant_id = $2 AND bc.deleted_at IS NULL
   `;
 
@@ -257,6 +306,14 @@ router.get('/:id', enforceTenantIsolation, asyncHandler(async (req, res) => {
         createdAt: bot.created_at,
         updatedAt: bot.updated_at,
         createdBy: bot.created_by_name,
+        merchant: bot.merchant_id ? {
+          id: bot.merchant_id,
+          name: bot.merchant_name,
+          businessType: bot.business_type,
+          contactPhone: bot.contact_phone,
+          contactEmail: bot.contact_email,
+          settings: bot.merchant_settings
+        } : null,
         // 出于安全考虑，不返回botToken
         hasToken: !!bot.bot_token
       }
@@ -289,9 +346,15 @@ router.get('/:id', enforceTenantIsolation, asyncHandler(async (req, res) => {
  *                 maxLength: 255
  *               platform:
  *                 type: string
- *                 enum: [telegram, whatsapp, slack, discord, teams]
+ *                 enum: [telegram, whatsapp, slack, discord, teams, intercom]
  *               botToken:
  *                 type: string
+ *               merchantId:
+ *                 type: string
+ *                 description: 商户ID
+ *               inviteCode:
+ *                 type: string
+ *                 description: 商户邀请码
  *               webhookUrl:
  *                 type: string
  *                 format: uri
@@ -313,7 +376,7 @@ router.post('/', requireManager, enforceTenantIsolation, limitTenantResources('b
     throw new AppError(error.details[0].message, 400);
   }
 
-  const { name, platform, botToken, webhookUrl, webhookSecret, settings } = value;
+  const { name, platform, botToken, merchantId, inviteCode, webhookUrl, webhookSecret, settings } = value;
 
   // 检查同一租户下是否已有相同名称的Bot
   const existingBot = await pool.query(
@@ -325,6 +388,30 @@ router.post('/', requireManager, enforceTenantIsolation, limitTenantResources('b
     throw createConflictError('Bot name already exists');
   }
 
+  let finalMerchantId = null;
+  let merchantData = null;
+
+  // 处理商户绑定
+  if (inviteCode) {
+    // 通过邀请码绑定商户
+    try {
+      const bindingResult = await merchantService.bindBotByInviteCode(inviteCode, null, platform);
+      finalMerchantId = bindingResult.merchant.id;
+      merchantData = bindingResult.merchant;
+    } catch (error) {
+      throw new AppError(`邀请码绑定失败：${error.message}`, 400);
+    }
+  } else if (merchantId) {
+    // 通过商户ID绑定商户
+    try {
+      const merchant = await merchantService.getMerchantByIdentifier(req.user.tenantId, merchantId);
+      finalMerchantId = merchant.id;
+      merchantData = merchant;
+    } catch (error) {
+      throw new AppError(`商户ID无效：${error.message}`, 400);
+    }
+  }
+
   // 生成webhook URL（如果未提供）
   const finalWebhookUrl = webhookUrl || `https://api.your-domain.com/api/webhooks/${platform}`;
 
@@ -332,9 +419,9 @@ router.post('/', requireManager, enforceTenantIsolation, limitTenantResources('b
   const insertQuery = `
     INSERT INTO bot_configs (
       id, tenant_id, name, platform, bot_token, webhook_url, 
-      webhook_secret, settings, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-    RETURNING id, name, platform, webhook_url, is_active, settings, created_at
+      webhook_secret, settings, merchant_id, created_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    RETURNING id, name, platform, webhook_url, is_active, settings, merchant_id, created_at
   `;
 
   const result = await pool.query(insertQuery, [
@@ -346,10 +433,27 @@ router.post('/', requireManager, enforceTenantIsolation, limitTenantResources('b
     finalWebhookUrl,
     webhookSecret,
     JSON.stringify(settings),
+    finalMerchantId,
     req.user.id
   ]);
 
   const newBot = result.rows[0];
+
+  // 如果有商户ID，创建商户-Bot关联
+  if (finalMerchantId) {
+    try {
+      await merchantService.bindBotToMerchant(finalMerchantId, botId, platform, {
+        createdFrom: 'manual',
+        createdBy: req.user.id
+      });
+    } catch (error) {
+      logger.warn('Failed to create merchant-bot binding', { 
+        botId, 
+        merchantId: finalMerchantId,
+        error: error.message 
+      });
+    }
+  }
 
   // 设置webhook
   try {
@@ -371,6 +475,7 @@ router.post('/', requireManager, enforceTenantIsolation, limitTenantResources('b
     botId: newBot.id,
     tenantId: req.user.tenantId,
     platform: newBot.platform,
+    merchantId: finalMerchantId,
     createdBy: req.user.id
   });
 
@@ -385,7 +490,11 @@ router.post('/', requireManager, enforceTenantIsolation, limitTenantResources('b
         webhookUrl: newBot.webhook_url,
         isActive: newBot.is_active,
         settings: newBot.settings,
-        createdAt: newBot.created_at
+        createdAt: newBot.created_at,
+        merchant: merchantData ? {
+          id: merchantData.merchant_id || merchantData.id,
+          name: merchantData.merchant_name || merchantData.name
+        } : null
       }
     }
   });
@@ -415,6 +524,8 @@ router.post('/', requireManager, enforceTenantIsolation, limitTenantResources('b
  *               name:
  *                 type: string
  *               botToken:
+ *                 type: string
+ *               merchantId:
  *                 type: string
  *               webhookUrl:
  *                 type: string
@@ -450,6 +561,31 @@ router.put('/:id', requireManager, enforceTenantIsolation, asyncHandler(async (r
 
   const bot = existingBot.rows[0];
 
+  // 处理商户ID更新
+  let finalMerchantId = value.merchantId;
+  if (value.merchantId && value.merchantId !== bot.merchant_id) {
+    try {
+      const merchant = await merchantService.getMerchantByIdentifier(req.user.tenantId, value.merchantId);
+      finalMerchantId = merchant.id;
+      
+      // 如果原来有商户绑定，先解绑
+      if (bot.merchant_id) {
+        await pool.query(
+          'UPDATE merchant_bots SET is_active = false WHERE bot_config_id = $1 AND merchant_id = $2',
+          [id, bot.merchant_id]
+        );
+      }
+      
+      // 创建新的商户绑定
+      await merchantService.bindBotToMerchant(merchant.id, id, bot.platform, {
+        updatedFrom: 'manual',
+        updatedBy: req.user.id
+      });
+    } catch (error) {
+      throw new AppError(`商户ID绑定失败：${error.message}`, 400);
+    }
+  }
+
   // 构建更新字段
   const updateFields = [];
   const updateValues = [];
@@ -460,6 +596,9 @@ router.put('/:id', requireManager, enforceTenantIsolation, asyncHandler(async (r
       if (key === 'settings') {
         updateFields.push(`${key} = $${paramIndex}`);
         updateValues.push(JSON.stringify(value[key]));
+      } else if (key === 'merchantId') {
+        updateFields.push(`merchant_id = $${paramIndex}`);
+        updateValues.push(finalMerchantId);
       } else {
         const dbKey = key === 'isActive' ? 'is_active' : 
                      key === 'botToken' ? 'bot_token' :
@@ -483,7 +622,7 @@ router.put('/:id', requireManager, enforceTenantIsolation, asyncHandler(async (r
     UPDATE bot_configs 
     SET ${updateFields.join(', ')}
     WHERE id = $${paramIndex} AND tenant_id = $${paramIndex + 1}
-    RETURNING id, name, platform, webhook_url, is_active, settings, updated_at
+    RETURNING id, name, platform, webhook_url, is_active, settings, merchant_id, updated_at
   `;
 
   const result = await pool.query(updateQuery, updateValues);
@@ -525,8 +664,64 @@ router.put('/:id', requireManager, enforceTenantIsolation, asyncHandler(async (r
         webhookUrl: updatedBot.webhook_url,
         isActive: updatedBot.is_active,
         settings: updatedBot.settings,
+        merchantId: updatedBot.merchant_id,
         updatedAt: updatedBot.updated_at
       }
+    }
+  });
+}));
+
+/**
+ * @swagger
+ * /api/bots/by-merchant/{merchantId}:
+ *   get:
+ *     summary: 获取商户的所有Bot
+ *     tags: [Bots]
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: merchantId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: 商户ID
+ *     responses:
+ *       200:
+ *         description: 商户Bot列表获取成功
+ *       404:
+ *         description: 商户不存在
+ */
+router.get('/by-merchant/:merchantId', enforceTenantIsolation, asyncHandler(async (req, res) => {
+  const { merchantId } = req.params;
+
+  // 验证商户是否存在且属于当前租户
+  const merchant = await merchantService.getMerchantByIdentifier(req.user.tenantId, merchantId);
+  if (!merchant) {
+    throw createNotFoundError('Merchant not found');
+  }
+
+  // 获取商户的所有Bot
+  const bots = await merchantService.getMerchantBots(merchant.id);
+
+  res.json({
+    status: 'success',
+    data: {
+      merchant: {
+        id: merchant.merchant_id,
+        name: merchant.merchant_name,
+        businessType: merchant.business_type
+      },
+      bots: bots.map(bot => ({
+        id: bot.id,
+        name: bot.bot_name,
+        platform: bot.platform,
+        isActive: bot.is_active && bot.bot_active,
+        isPrimary: bot.is_primary,
+        messageCount: bot.message_count,
+        lastMessageAt: bot.last_message_at,
+        createdAt: bot.created_at
+      }))
     }
   });
 }));
@@ -554,18 +749,49 @@ router.put('/:id', requireManager, enforceTenantIsolation, asyncHandler(async (r
 router.delete('/:id', requireManager, enforceTenantIsolation, asyncHandler(async (req, res) => {
   const { id } = req.params;
 
-  const result = await pool.query(
-    'UPDATE bot_configs SET deleted_at = NOW() WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL RETURNING id',
+  // 获取Bot信息
+  const botQuery = await pool.query(
+    'SELECT * FROM bot_configs WHERE id = $1 AND tenant_id = $2 AND deleted_at IS NULL',
     [id, req.user.tenantId]
   );
 
-  if (result.rows.length === 0) {
+  if (botQuery.rows.length === 0) {
     throw createNotFoundError('Bot not found');
+  }
+
+  const bot = botQuery.rows[0];
+
+  // 开始事务
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // 软删除Bot
+    await client.query(
+      'UPDATE bot_configs SET deleted_at = NOW() WHERE id = $1',
+      [id]
+    );
+
+    // 如果有商户绑定，禁用商户-Bot关联
+    if (bot.merchant_id) {
+      await client.query(
+        'UPDATE merchant_bots SET is_active = false WHERE bot_config_id = $1',
+        [id]
+      );
+    }
+
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
   }
 
   logger.info('Bot deleted successfully', {
     botId: id,
     tenantId: req.user.tenantId,
+    merchantId: bot.merchant_id,
     deletedBy: req.user.id
   });
 

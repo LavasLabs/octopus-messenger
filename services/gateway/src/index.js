@@ -94,6 +94,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', authMiddleware, require('./routes/users'));
 app.use('/api/tenants', authMiddleware, require('./routes/tenants'));
 app.use('/api/bots', authMiddleware, require('./routes/bots'));
+app.use('/api/merchants', authMiddleware, require('./routes/merchants')); // 新增：商户管理路由
 app.use('/api/messages', authMiddleware, require('./routes/messages'));
 app.use('/api/tasks', authMiddleware, require('./routes/tasks'));
 app.use('/api/classifications', authMiddleware, require('./routes/classifications'));
