@@ -172,29 +172,43 @@ graph TD
 - PostgreSQL 14+
 - Redis 7+
 
-### 安装部署
+### 一键安装部署
 
+#### 🚀 自动配置脚本（推荐）
+```bash
+# 克隆项目
+git clone https://github.com/LavasLabs/octopus-messenger.git
+cd octopus-messenger
+
+# 运行自动配置脚本
+./scripts/setup-local.sh
+```
+
+#### 📝 手动配置
 1. 克隆项目
 ```bash
-git clone https://github.com/your-org/octopus-messenger.git
+git clone https://github.com/LavasLabs/octopus-messenger.git
 cd octopus-messenger
 ```
 
 2. 配置环境变量
 ```bash
-cp .env.example .env
+cp docs/env-template.txt .env
 # 编辑.env文件，填入相关API密钥
 ```
 
 3. 启动服务
 ```bash
+# 使用Docker（推荐）
 docker-compose up -d
+
+# 或手动启动
+npm install
+npm run db:migrate
+npm run dev
 ```
 
-4. 初始化数据库
-```bash
-npm run db:migrate
-```
+**💡 提示**: 详细配置说明请查看[本地部署指南](docs/Local-Deployment-Guide.md)
 
 ## 服务组件
 
@@ -259,11 +273,13 @@ npm run build
 
 ## 📖 文档
 
+- [快速开始](docs/Quick-Start.md) - 5分钟快速体验系统
+- [本地部署指南](docs/Local-Deployment-Guide.md) - 本地开发环境配置
 - [Bot配置指南](docs/Bot-Configuration-Guide.md) - 详细的Bot配置步骤
 - [CRM集成指南](docs/CRM-Integration-Guide.md) - 多CRM系统集成配置
 - [用户使用指南](docs/User-Guide.md) - 完整的用户手册
 - [API文档](docs/API-Documentation.md) - REST API接口文档
-- [部署指南](docs/Deployment-Guide.md) - 部署和运维指南
+- [部署指南](docs/Deployment-Guide.md) - 生产环境部署和运维指南
 - [项目架构](PROJECT-STRUCTURE.md) - 项目结构说明
 
 ## 贡献

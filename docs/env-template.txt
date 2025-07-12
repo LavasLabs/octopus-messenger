@@ -1,0 +1,181 @@
+# ============================================
+# Octopus Messenger 环境配置文件
+# 复制此文件为 .env 并填入实际参数值
+# ============================================
+
+# 基础环境配置
+NODE_ENV=development
+PORT=3000
+
+# ============================================
+# 数据库配置（必需）
+# ============================================
+
+# PostgreSQL 数据库
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=octopus_messenger
+DB_USER=postgres
+DB_PASSWORD=请填入您的PostgreSQL密码
+DB_SSL=false
+DB_MAX_CONNECTIONS=20
+
+# Redis 缓存
+REDIS_HOST=localhost
+REDIS_PORT=6379
+REDIS_PASSWORD=
+REDIS_DB=0
+
+# MongoDB（可选）
+MONGODB_URL=mongodb://localhost:27017/octopus_messenger
+
+# ============================================
+# 安全配置（必需）
+# ============================================
+
+# JWT密钥 - 请更改为复杂的随机字符串
+JWT_SECRET=请生成一个256位的随机密钥
+JWT_EXPIRES_IN=7d
+
+# 服务间通信密钥
+SERVICE_TOKEN=请生成一个服务间通信密钥
+
+# ============================================
+# 微服务端口配置
+# ============================================
+
+GATEWAY_PORT=3000
+MESSAGE_PROCESSOR_PORT=3001
+AI_SERVICE_PORT=3002
+TASK_SERVICE_PORT=3003
+BOT_MANAGER_PORT=3004
+ADMIN_PANEL_PORT=3005
+
+# ============================================
+# AI服务配置（必需至少一个）
+# ============================================
+
+# OpenAI配置
+OPENAI_API_KEY=sk-请填入您的OpenAI API密钥
+OPENAI_MODEL=gpt-4
+OPENAI_MAX_TOKENS=1000
+OPENAI_TEMPERATURE=0.7
+
+# Claude配置（可选）
+CLAUDE_API_KEY=请填入您的Claude API密钥
+CLAUDE_MODEL=claude-3-sonnet-20240229
+CLAUDE_MAX_TOKENS=1000
+
+# ============================================
+# Bot平台配置（可选）
+# ============================================
+
+# Telegram Bot
+TELEGRAM_ENABLED=false
+TELEGRAM_BOT_TOKEN=请从@BotFather获取token
+TELEGRAM_WEBHOOK_URL=https://your-domain.com/api/webhooks/telegram
+TELEGRAM_SECRET_TOKEN=请设置一个secret token
+
+# WhatsApp Business API
+WHATSAPP_ENABLED=false
+WHATSAPP_ACCESS_TOKEN=请从Facebook Developer获取
+WHATSAPP_PHONE_NUMBER_ID=请填入电话号码ID
+WHATSAPP_WEBHOOK_URL=https://your-domain.com/api/webhooks/whatsapp
+WHATSAPP_VERIFY_TOKEN=请设置验证token
+
+# Slack Bot
+SLACK_ENABLED=false
+SLACK_BOT_TOKEN=xoxb-请从Slack App获取bot token
+SLACK_SIGNING_SECRET=请从Slack App获取signing secret
+SLACK_APP_TOKEN=xapp-请填入app token（如果使用Socket Mode）
+SLACK_SOCKET_MODE=false
+
+# ============================================
+# CRM集成配置（可选）
+# ============================================
+
+# 飞书/Lark
+LARK_APP_ID=请从飞书开放平台获取
+LARK_APP_SECRET=请从飞书开放平台获取
+LARK_WEBHOOK_URL=请设置webhook URL
+
+# Salesforce
+SALESFORCE_CLIENT_ID=请从Salesforce Connected App获取
+SALESFORCE_CLIENT_SECRET=请从Salesforce Connected App获取
+SALESFORCE_USERNAME=您的Salesforce用户名
+SALESFORCE_PASSWORD=您的密码+安全令牌
+
+# HubSpot
+HUBSPOT_API_KEY=请从HubSpot获取API密钥
+
+# 钉钉
+DINGTALK_APP_KEY=请从钉钉开放平台获取
+DINGTALK_APP_SECRET=请从钉钉开放平台获取
+
+# 企业微信
+WEWORK_CORP_ID=请填入企业ID
+WEWORK_AGENT_ID=请填入应用ID
+WEWORK_SECRET=请填入应用Secret
+
+# ============================================
+# 日志配置
+# ============================================
+
+LOG_LEVEL=info
+LOG_FILE=logs/app.log
+LOG_MAX_SIZE=20m
+LOG_MAX_FILES=5
+LOG_DATE_PATTERN=YYYY-MM-DD
+
+# ============================================
+# 安全和限流配置
+# ============================================
+
+# 跨域配置
+CORS_ORIGINS=http://localhost:3000,http://localhost:3005
+
+# 限流配置
+RATE_LIMIT_WINDOW=60000
+RATE_LIMIT_MAX_REQUESTS=100
+
+# 安全配置
+HELMET_ENABLED=true
+CSRF_ENABLED=false
+
+# ============================================
+# 监控配置
+# ============================================
+
+PROMETHEUS_PORT=9090
+GRAFANA_PORT=3001
+HEALTH_CHECK_PATH=/health
+HEALTH_CHECK_INTERVAL=30000
+
+# ============================================
+# 邮件配置（可选）
+# ============================================
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=请填入邮箱地址
+SMTP_PASSWORD=请填入邮箱密码或应用专用密码
+SMTP_FROM=noreply@your-domain.com
+
+# ============================================
+# 本地开发配置
+# ============================================
+
+# 开发调试
+DEBUG=octopus:*
+DEVELOPMENT_MODE=true
+
+# 本地域名（用于webhook）
+LOCAL_DOMAIN=http://localhost:3000
+
+# ngrok URL（如果使用）
+LOCAL_NGROK_URL=https://your-random-id.ngrok.io
+
+# 开发环境跳过验证（谨慎使用）
+SKIP_WEBHOOK_VERIFICATION=false
+SKIP_AUTH_FOR_DEVELOPMENT=false 
