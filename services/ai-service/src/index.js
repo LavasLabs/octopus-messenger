@@ -22,6 +22,8 @@ const DatabaseManager = require('./utils/DatabaseManager');
 const CacheManager = require('./utils/CacheManager');
 const NLPProcessor = require('./processors/NLPProcessor');
 const TenantModelManager = require('./managers/TenantModelManager');
+const TenantModeManager = require('./managers/TenantModeManager');
+const SmartClassificationManager = require('./managers/SmartClassificationManager');
 
 // 创建Express应用
 const app = express();
@@ -207,6 +209,8 @@ app.use('/api/classify', authMiddleware, require('./routes/classify'));
 app.use('/api/models', authMiddleware, require('./routes/models'));
 app.use('/api/analytics', authMiddleware, require('./routes/analytics'));
 app.use('/api/tenant', authMiddleware, require('./routes/tenant'));
+app.use('/api/mode', authMiddleware, require('./routes/mode'));
+app.use('/api/smart-classify', authMiddleware, require('./routes/smart-classify'));
 
 // 全局变量
 let classificationManager;
@@ -214,6 +218,8 @@ let nlpProcessor;
 let dbManager;
 let cacheManager;
 let tenantModelManager;
+let tenantModeManager;
+let smartClassificationManager;
 
 // 初始化服务
 async function initializeService() {
@@ -244,6 +250,15 @@ async function initializeService() {
     });
     await tenantModelManager.initialize();
     logger.info('Tenant model manager initialized');
+
+    // 初始化租户模式管理器
+    tenantModeManager = new TenantModeManager({
+      dbManager,
+      cacheManager,
+      config
+    });
+    await tenantModeManager.initialize();
+    logger.info('Tenant mode manager initialized');
 
     // 初始化分类器
     const classifiers = {};
@@ -278,12 +293,25 @@ async function initializeService() {
     await classificationManager.initialize();
     logger.info('Classification manager initialized');
 
+    // 初始化智能分类管理器
+    smartClassificationManager = new SmartClassificationManager({
+      classificationManager,
+      tenantModelManager,
+      tenantModeManager,
+      dbManager,
+      config
+    });
+    await smartClassificationManager.initialize();
+    logger.info('Smart classification manager initialized');
+
     // 设置全局变量供路由使用
     app.locals.classificationManager = classificationManager;
     app.locals.nlpProcessor = nlpProcessor;
     app.locals.dbManager = dbManager;
     app.locals.cacheManager = cacheManager;
     app.locals.tenantModelManager = tenantModelManager;
+    app.locals.tenantModeManager = tenantModeManager;
+    app.locals.smartClassificationManager = smartClassificationManager;
 
     logger.info('AI Service initialized successfully');
   } catch (error) {
@@ -325,6 +353,18 @@ async function startServer() {
           if (tenantModelManager) {
             await tenantModelManager.shutdown();
             logger.info('Tenant model manager shut down');
+          }
+
+          // 关闭租户模式管理器
+          if (tenantModeManager) {
+            await tenantModeManager.shutdown();
+            logger.info('Tenant mode manager shut down');
+          }
+
+          // 关闭智能分类管理器
+          if (smartClassificationManager) {
+            await smartClassificationManager.shutdown();
+            logger.info('Smart classification manager shut down');
           }
 
           // 关闭数据库连接
