@@ -1,0 +1,39 @@
+FROM node:18-alpine
+
+# 设置工作目录
+WORKDIR /app
+
+# 安装系统依赖
+RUN apk add --no-cache curl bash
+
+# 复制根目录配置文件
+COPY package*.json ./
+COPY config/ ./config/
+
+# 复制网关服务文件
+COPY services/gateway/package*.json ./services/gateway/
+COPY services/gateway/src/ ./services/gateway/src/
+
+# 安装根目录依赖
+RUN npm ci --only=production && npm cache clean --force
+
+# 安装服务依赖
+WORKDIR /app/services/gateway
+RUN npm ci --only=production && npm cache clean --force
+
+# 切换回根目录
+WORKDIR /app
+
+# 创建非root用户
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S octopus -u 1001
+
+# 设置权限
+RUN chown -R octopus:nodejs /app
+USER octopus
+
+# 暴露端口
+EXPOSE 3000
+
+# 启动命令
+CMD ["node", "services/gateway/src/index.js"] 

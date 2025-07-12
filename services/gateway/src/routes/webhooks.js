@@ -55,6 +55,20 @@ const verifyDiscordSignature = (body, timestamp, signature, publicKey) => {
   }
 };
 
+// 验证Line签名
+const verifyLineSignature = (body, signature, secret) => {
+  const hash = crypto.createHmac('sha256', secret).update(body).digest('base64');
+  return hash === signature;
+};
+
+// 验证企业微信签名
+const verifyWeWorkSignature = (timestamp, nonce, signature, token) => {
+  const arr = [token, timestamp, nonce].sort();
+  const str = arr.join('');
+  const hash = crypto.createHash('sha1').update(str).digest('hex');
+  return hash === signature;
+};
+
 // 处理消息的通用函数
 const processMessage = async (messageData, botConfig) => {
   try {
@@ -700,6 +714,296 @@ router.post('/discord', asyncHandler(async (req, res) => {
   }
 
   res.json({ status: 'ok' });
+}));
+
+/**
+ * @swagger
+ * /api/webhooks/line:
+ *   post:
+ *     summary: Line webhook endpoint
+ *     tags: [Webhooks]
+ *     parameters:
+ *       - in: header
+ *         name: X-Line-Signature
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ *       401:
+ *         description: Invalid signature
+ */
+router.post('/line', asyncHandler(async (req, res) => {
+  const signature = req.headers['x-line-signature'];
+  const body = JSON.stringify(req.body);
+
+  // 获取bot配置
+  const botQuery = `
+    SELECT bc.*, t.name as tenant_name
+    FROM bot_configs bc
+    JOIN tenants t ON bc.tenant_id = t.id
+    WHERE bc.platform = 'line' AND bc.is_active = true
+  `;
+  
+  const botResult = await pool.query(botQuery);
+  
+  if (botResult.rows.length === 0) {
+    throw new AppError('No active Line bot found', 404);
+  }
+
+  const botConfig = botResult.rows[0];
+
+  // 验证签名
+  if (botConfig.webhook_secret && !verifyLineSignature(body, signature, botConfig.webhook_secret)) {
+    throw new AppError('Invalid signature', 401);
+  }
+
+  const webhook = req.body;
+  
+  // 处理Line事件
+  if (webhook.events) {
+    for (const event of webhook.events) {
+      if (event.type === 'message') {
+        const message = event.message;
+        
+        // 构建标准消息格式
+        const messageData = {
+          id: uuidv4(),
+          externalId: message.id,
+          platform: 'line',
+          messageType: message.type || 'text',
+          content: message.text || message.fileName || '',
+          mediaUrl: message.id && message.type !== 'text' ? message.id : null,
+          senderId: event.source.userId,
+          senderUsername: '',
+          senderName: '',
+          chatId: event.source.userId || event.source.groupId || event.source.roomId,
+          chatTitle: event.source.type === 'group' ? 'Group' : 
+                    event.source.type === 'room' ? 'Room' : 'Private',
+          chatType: event.source.type,
+          rawData: event,
+          receivedAt: new Date().toISOString(),
+          tenantId: botConfig.tenant_id,
+          botConfigId: botConfig.id
+        };
+
+        // 保存消息到数据库
+        const insertQuery = `
+          INSERT INTO messages (
+            id, tenant_id, bot_config_id, external_id, platform, message_type,
+            content, media_url, sender_id, sender_username, sender_name,
+            chat_id, chat_title, chat_type, raw_data, received_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+          )
+        `;
+
+        await pool.query(insertQuery, [
+          messageData.id, messageData.tenantId, messageData.botConfigId,
+          messageData.externalId, messageData.platform, messageData.messageType,
+          messageData.content, messageData.mediaUrl, messageData.senderId,
+          messageData.senderUsername, messageData.senderName, messageData.chatId,
+          messageData.chatTitle, messageData.chatType, messageData.rawData,
+          messageData.receivedAt
+        ]);
+
+        // 发送到消息处理服务
+        await processMessage(messageData, botConfig);
+
+        logger.info('Line message processed', {
+          messageId: messageData.id,
+          tenantId: botConfig.tenant_id,
+          chatId: messageData.chatId,
+          messageType: messageData.messageType
+        });
+      }
+    }
+  }
+
+  res.json({ status: 'ok' });
+}));
+
+/**
+ * @swagger
+ * /api/webhooks/wework:
+ *   post:
+ *     summary: WeWork webhook endpoint
+ *     tags: [Webhooks]
+ *     parameters:
+ *       - in: query
+ *         name: msg_signature
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: timestamp
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: nonce
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: Webhook processed successfully
+ *       401:
+ *         description: Invalid signature
+ */
+router.post('/wework', asyncHandler(async (req, res) => {
+  const { msg_signature, timestamp, nonce } = req.query;
+  const body = JSON.stringify(req.body);
+
+  // 获取bot配置
+  const botQuery = `
+    SELECT bc.*, t.name as tenant_name
+    FROM bot_configs bc
+    JOIN tenants t ON bc.tenant_id = t.id
+    WHERE bc.platform = 'wework' AND bc.is_active = true
+  `;
+  
+  const botResult = await pool.query(botQuery);
+  
+  if (botResult.rows.length === 0) {
+    throw new AppError('No active WeWork bot found', 404);
+  }
+
+  const botConfig = botResult.rows[0];
+
+  // 验证签名
+  if (botConfig.webhook_secret && !verifyWeWorkSignature(timestamp, nonce, msg_signature, botConfig.webhook_secret)) {
+    throw new AppError('Invalid signature', 401);
+  }
+
+  const messageData = req.body;
+  
+  // 处理企业微信消息
+  if (messageData.MsgType) {
+    // 构建标准消息格式
+    const standardMessage = {
+      id: uuidv4(),
+      externalId: messageData.MsgId || Date.now().toString(),
+      platform: 'wework',
+      messageType: messageData.MsgType,
+      content: messageData.Content || messageData.Recognition || messageData.Label || '',
+      mediaUrl: messageData.MediaId || messageData.PicUrl || null,
+      senderId: messageData.FromUserName,
+      senderUsername: '',
+      senderName: '',
+      chatId: messageData.FromUserName,
+      chatTitle: messageData.ToUserName,
+      chatType: 'private',
+      rawData: messageData,
+      receivedAt: new Date().toISOString(),
+      tenantId: botConfig.tenant_id,
+      botConfigId: botConfig.id
+    };
+
+    // 保存消息到数据库
+    const insertQuery = `
+      INSERT INTO messages (
+        id, tenant_id, bot_config_id, external_id, platform, message_type,
+        content, media_url, sender_id, sender_username, sender_name,
+        chat_id, chat_title, chat_type, raw_data, received_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
+      )
+    `;
+
+    await pool.query(insertQuery, [
+      standardMessage.id, standardMessage.tenantId, standardMessage.botConfigId,
+      standardMessage.externalId, standardMessage.platform, standardMessage.messageType,
+      standardMessage.content, standardMessage.mediaUrl, standardMessage.senderId,
+      standardMessage.senderUsername, standardMessage.senderName, standardMessage.chatId,
+      standardMessage.chatTitle, standardMessage.chatType, standardMessage.rawData,
+      standardMessage.receivedAt
+    ]);
+
+    // 发送到消息处理服务
+    await processMessage(standardMessage, botConfig);
+
+    logger.info('WeWork message processed', {
+      messageId: standardMessage.id,
+      tenantId: botConfig.tenant_id,
+      chatId: standardMessage.chatId,
+      messageType: standardMessage.messageType
+    });
+  }
+
+  res.json({ status: 'ok' });
+}));
+
+/**
+ * @swagger
+ * /api/webhooks/wework:
+ *   get:
+ *     summary: WeWork webhook verification
+ *     tags: [Webhooks]
+ *     parameters:
+ *       - in: query
+ *         name: msg_signature
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: timestamp
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: nonce
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: echostr
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Verification successful
+ *       403:
+ *         description: Invalid verification
+ */
+router.get('/wework', asyncHandler(async (req, res) => {
+  const { msg_signature, timestamp, nonce, echostr } = req.query;
+
+  // 获取bot配置
+  const botQuery = `
+    SELECT bc.*
+    FROM bot_configs bc
+    WHERE bc.platform = 'wework' AND bc.is_active = true
+  `;
+  
+  const botResult = await pool.query(botQuery);
+  
+  if (botResult.rows.length === 0) {
+    throw new AppError('No active WeWork bot found', 404);
+  }
+
+  const botConfig = botResult.rows[0];
+
+  // 验证签名
+  if (verifyWeWorkSignature(timestamp, nonce, msg_signature, botConfig.webhook_secret)) {
+    res.status(200).send(echostr);
+  } else {
+    throw new AppError('Invalid verification', 403);
+  }
 }));
 
 module.exports = router; 

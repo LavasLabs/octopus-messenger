@@ -1,0 +1,67 @@
+{{#if error}}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{error}}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{{/if}}
+
+<form method="POST" action="/login">
+    <div class="form-floating mb-3">
+        <input type="email" class="form-control" id="email" name="email" placeholder="邮箱地址" 
+               value="{{email}}" required>
+        <label for="email"><i class="fas fa-envelope me-2"></i>邮箱地址</label>
+    </div>
+    
+    <div class="form-floating mb-3">
+        <input type="password" class="form-control" id="password" name="password" placeholder="密码" required>
+        <label for="password"><i class="fas fa-lock me-2"></i>密码</label>
+    </div>
+    
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="remember" name="remember">
+        <label class="form-check-label" for="remember">
+            记住我
+        </label>
+    </div>
+    
+    <div class="d-grid">
+        <button type="submit" class="btn btn-primary btn-auth">
+            <i class="fas fa-sign-in-alt me-2"></i>登录
+        </button>
+    </div>
+</form>
+
+<div class="text-center mt-3">
+    <a href="/forgot-password" class="text-decoration-none">
+        <i class="fas fa-question-circle me-1"></i>忘记密码？
+    </a>
+</div>
+
+<script>
+// 表单验证
+document.querySelector('form').addEventListener('submit', function(e) {
+    const email = document.getElementById('email').value;
+    const password = document.getElementById('password').value;
+    
+    if (!email || !password) {
+        e.preventDefault();
+        alert('请填写所有必填字段');
+        return;
+    }
+    
+    // 简单的邮箱格式验证
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        e.preventDefault();
+        alert('请输入有效的邮箱地址');
+        return;
+    }
+});
+
+// 回车键提交
+document.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        document.querySelector('form').submit();
+    }
+});
+</script> 

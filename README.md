@@ -4,7 +4,7 @@
 
 ## 功能特性
 
-- 🤖 多平台Bot支持（Telegram、WhatsApp、Slack、Discord）
+- 🤖 多平台Bot支持（Telegram、WhatsApp、Slack、Discord、Line、企业微信）
 - 🧠 AI智能分类和过滤（Claude、OpenAI）
 - 📝 多CRM系统集成（16+主流CRM支持）
 - 🏗️ 微服务架构设计
@@ -22,6 +22,9 @@ graph TD
     TG[Telegram Bot]
     WA[WhatsApp Bot]  
     SL[Slack Bot]
+    DS[Discord Bot]
+    LN[Line Bot]
+    WW[WeWork Bot]
     
     %% 网关层
     GW[Gateway API<br/>Port: 3000]
@@ -73,6 +76,9 @@ graph TD
     TG -->|Webhook| GW
     WA -->|Webhook| GW
     SL -->|Webhook| GW
+    DS -->|Webhook| GW
+    LN -->|Webhook| GW
+    WW -->|Webhook| GW
     
     NX --> GW
     
@@ -143,7 +149,7 @@ graph TD
     classDef proxy fill:#f1f8e9,stroke:#33691e,stroke-width:2px
     classDef router fill:#ffebee,stroke:#c62828,stroke-width:3px
     
-    class TG,WA,SL platform
+    class TG,WA,SL,DS,LN,WW platform
     class GW,MP,AI,TS,BM,AP service
     class PG,RD,MG database
     class OAI,CL ai

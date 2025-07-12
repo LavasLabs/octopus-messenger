@@ -1,325 +1,222 @@
 #!/bin/bash
 
-# Octopus Messenger 本地部署配置脚本
+# Octopus Messenger 本地开发环境设置脚本
 
 set -e
 
-echo "🐙 Octopus Messenger 本地部署配置脚本"
-echo "================================================"
+echo "🐙 Octopus Messenger 本地环境设置"
+echo "=================================="
 
-# 检查必需的工具
+# 检查必要的工具
 check_requirements() {
     echo "📋 检查系统要求..."
     
-    # 检查 Node.js
+    # 检查Docker
+    if ! command -v docker &> /dev/null; then
+        echo "❌ Docker 未安装，请先安装 Docker"
+        exit 1
+    fi
+    
+    # 检查Docker Compose
+    if ! command -v docker-compose &> /dev/null; then
+        echo "❌ Docker Compose 未安装，请先安装 Docker Compose"
+        exit 1
+    fi
+    
+    # 检查Node.js
     if ! command -v node &> /dev/null; then
-        echo "❌ Node.js 未安装。请安装 Node.js 18+ 版本"
+        echo "❌ Node.js 未安装，请先安装 Node.js 18+"
         exit 1
     fi
     
-    node_version=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
-    if [ "$node_version" -lt 18 ]; then
-        echo "❌ Node.js 版本过低，当前版本：$(node -v)，需要 18+"
-        exit 1
-    fi
-    echo "✅ Node.js 版本：$(node -v)"
-    
-    # 检查 npm
+    # 检查npm
     if ! command -v npm &> /dev/null; then
-        echo "❌ npm 未安装"
+        echo "❌ npm 未安装，请先安装 npm"
         exit 1
     fi
-    echo "✅ npm 版本：$(npm -v)"
     
-    # 检查 Docker（可选）
-    if command -v docker &> /dev/null; then
-        echo "✅ Docker 版本：$(docker -v)"
+    echo "✅ 系统要求检查通过"
+}
+
+# 创建环境变量文件
+setup_env() {
+    echo "⚙️  设置环境变量..."
+    
+    if [ ! -f .env ]; then
+        echo "📄 创建 .env 文件..."
+        cp docs/env-template.env .env
+        
+        # 生成随机密钥
+        JWT_SECRET=$(openssl rand -base64 32 2>/dev/null || echo "your-super-secret-jwt-key-change-this-in-production")
+        SESSION_SECRET=$(openssl rand -base64 32 2>/dev/null || echo "your-session-secret-change-this-in-production")
+        ENCRYPTION_KEY=$(openssl rand -base64 32 | head -c 32 2>/dev/null || echo "your-encryption-key-32-chars-long")
+        
+        # 替换默认值
+        sed -i.bak "s/your-super-secret-jwt-key-change-this-in-production/$JWT_SECRET/" .env
+        sed -i.bak "s/your-session-secret-change-this-in-production/$SESSION_SECRET/" .env
+        sed -i.bak "s/your-encryption-key-32-characters-long/$ENCRYPTION_KEY/" .env
+        
+        rm .env.bak 2>/dev/null || true
+        
+        echo "✅ .env 文件已创建，请根据需要修改配置"
     else
-        echo "⚠️  Docker 未安装（可选，但推荐用于数据库）"
-    fi
-    
-    # 检查 PostgreSQL
-    if command -v psql &> /dev/null; then
-        echo "✅ PostgreSQL 已安装"
-    else
-        echo "⚠️  PostgreSQL 未安装（将建议使用 Docker）"
-    fi
-    
-    # 检查 Redis
-    if command -v redis-cli &> /dev/null; then
-        echo "✅ Redis 已安装"
-    else
-        echo "⚠️  Redis 未安装（将建议使用 Docker）"
+        echo "📄 .env 文件已存在"
     fi
 }
 
-# 创建环境配置文件
-create_env_file() {
-    echo ""
-    echo "📝 创建环境配置文件..."
+# 创建必要的目录
+create_directories() {
+    echo "📁 创建必要的目录..."
     
-    if [ -f ".env" ]; then
-        echo "⚠️  .env 文件已存在"
-        read -p "是否覆盖现有配置？(y/N): " -n 1 -r
-        echo
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "跳过环境配置文件创建"
-            return
-        fi
-    fi
+    mkdir -p logs
+    mkdir -p uploads
+    mkdir -p ssl
+    mkdir -p monitoring/grafana/provisioning/dashboards
+    mkdir -p monitoring/grafana/provisioning/datasources
     
-    # 复制模板文件
-    cp docs/env-template.txt .env
-    echo "✅ 已创建 .env 文件（从模板复制）"
-    
-    # 生成随机密钥
-    jwt_secret=$(openssl rand -hex 32)
-    service_token=$(openssl rand -hex 24)
-    
-    # 更新密钥
-    sed -i.bak "s/请生成一个256位的随机密钥/$jwt_secret/g" .env
-    sed -i.bak "s/请生成一个服务间通信密钥/$service_token/g" .env
-    rm .env.bak
-    
-    echo "✅ 已生成随机密钥"
-}
-
-# 配置数据库
-setup_database() {
-    echo ""
-    echo "🗄️  配置数据库..."
-    
-    echo "选择数据库配置方式："
-    echo "1) 使用 Docker (推荐)"
-    echo "2) 使用本地安装的数据库"
-    echo "3) 跳过数据库配置"
-    
-    read -p "请选择 (1-3): " -n 1 -r db_choice
-    echo
-    
-    case $db_choice in
-        1)
-            setup_docker_database
-            ;;
-        2)
-            setup_local_database
-            ;;
-        3)
-            echo "⏭️  跳过数据库配置"
-            ;;
-        *)
-            echo "❌ 无效选择，跳过数据库配置"
-            ;;
-    esac
-}
-
-# 使用 Docker 配置数据库
-setup_docker_database() {
-    echo "🐳 使用 Docker 启动数据库..."
-    
-    # 检查 Docker 是否运行
-    if ! docker info &> /dev/null; then
-        echo "❌ Docker 未运行，请启动 Docker"
-        return
-    fi
-    
-    # 启动 PostgreSQL
-    echo "启动 PostgreSQL..."
-    docker run -d \
-        --name octopus-postgres \
-        -p 5432:5432 \
-        -e POSTGRES_DB=octopus_messenger \
-        -e POSTGRES_USER=postgres \
-        -e POSTGRES_PASSWORD=octopus123 \
-        -v octopus_postgres_data:/var/lib/postgresql/data \
-        postgres:14-alpine
-    
-    # 启动 Redis
-    echo "启动 Redis..."
-    docker run -d \
-        --name octopus-redis \
-        -p 6379:6379 \
-        -v octopus_redis_data:/data \
-        redis:7-alpine
-    
-    # 更新 .env 文件
-    sed -i.bak "s/请填入您的PostgreSQL密码/octopus123/g" .env
-    rm .env.bak
-    
-    echo "✅ 数据库容器已启动"
-    echo "   PostgreSQL: localhost:5432"
-    echo "   Redis: localhost:6379"
-    echo "   密码已更新到 .env 文件"
-}
-
-# 配置本地数据库
-setup_local_database() {
-    echo "💻 配置本地数据库..."
-    
-    # PostgreSQL 配置
-    echo "配置 PostgreSQL："
-    read -p "PostgreSQL 主机 (localhost): " pg_host
-    pg_host=${pg_host:-localhost}
-    
-    read -p "PostgreSQL 端口 (5432): " pg_port
-    pg_port=${pg_port:-5432}
-    
-    read -p "PostgreSQL 用户名 (postgres): " pg_user
-    pg_user=${pg_user:-postgres}
-    
-    read -s -p "PostgreSQL 密码: " pg_password
-    echo
-    
-    # 更新 .env 文件
-    sed -i.bak "s/localhost/$pg_host/g" .env
-    sed -i.bak "s/5432/$pg_port/g" .env
-    sed -i.bak "s/postgres/$pg_user/g" .env
-    sed -i.bak "s/请填入您的PostgreSQL密码/$pg_password/g" .env
-    rm .env.bak
-    
-    echo "✅ PostgreSQL 配置已更新"
-}
-
-# 配置 AI 服务
-setup_ai_service() {
-    echo ""
-    echo "🤖 配置 AI 服务..."
-    
-    echo "选择 AI 服务提供商："
-    echo "1) OpenAI (推荐)"
-    echo "2) Claude"
-    echo "3) 都配置"
-    echo "4) 跳过"
-    
-    read -p "请选择 (1-4): " -n 1 -r ai_choice
-    echo
-    
-    case $ai_choice in
-        1|3)
-            read -p "请输入 OpenAI API Key (sk-...): " openai_key
-            if [ ! -z "$openai_key" ]; then
-                sed -i.bak "s/sk-请填入您的OpenAI API密钥/$openai_key/g" .env
-                rm .env.bak
-                echo "✅ OpenAI API Key 已配置"
-            fi
-            ;&
-        2|3)
-            if [ "$ai_choice" = "2" ] || [ "$ai_choice" = "3" ]; then
-                read -p "请输入 Claude API Key: " claude_key
-                if [ ! -z "$claude_key" ]; then
-                    sed -i.bak "s/请填入您的Claude API密钥/$claude_key/g" .env
-                    rm .env.bak
-                    echo "✅ Claude API Key 已配置"
-                fi
-            fi
-            ;;
-        4)
-            echo "⏭️  跳过 AI 服务配置"
-            ;;
-        *)
-            echo "❌ 无效选择，跳过 AI 服务配置"
-            ;;
-    esac
+    echo "✅ 目录创建完成"
 }
 
 # 安装依赖
 install_dependencies() {
-    echo ""
     echo "📦 安装项目依赖..."
     
+    # 安装根目录依赖
     npm install
+    
+    # 安装各个服务的依赖
+    services=("gateway" "message-processor" "ai-service" "task-service" "bot-manager" "admin-panel")
+    
+    for service in "${services[@]}"; do
+        if [ -f "services/$service/package.json" ]; then
+            echo "📦 安装 $service 服务依赖..."
+            cd "services/$service"
+            npm install
+            cd "../.."
+        fi
+    done
+    
     echo "✅ 依赖安装完成"
+}
+
+# 启动数据库服务
+start_databases() {
+    echo "🗄️  启动数据库服务..."
+    
+    # 只启动数据库相关服务
+    docker-compose up -d postgres redis mongodb
+    
+    echo "⏳ 等待数据库启动..."
+    sleep 10
+    
+    echo "✅ 数据库服务启动完成"
 }
 
 # 初始化数据库
 init_database() {
-    echo ""
-    echo "🔧 初始化数据库..."
+    echo "🗃️  初始化数据库..."
     
-    # 等待数据库启动
-    echo "等待数据库启动..."
-    sleep 5
+    # 等待PostgreSQL启动
+    echo "⏳ 等待 PostgreSQL 准备就绪..."
+    until docker-compose exec postgres pg_isready -U postgres; do
+        sleep 2
+    done
     
     # 运行数据库迁移
-    npm run db:migrate 2>/dev/null || {
-        echo "⚠️  数据库迁移失败，可能是数据库连接问题"
-        echo "请检查数据库配置并手动运行：npm run db:migrate"
-        return
-    }
+    echo "🔄 运行数据库迁移..."
+    docker-compose exec postgres psql -U postgres -d octopus_messenger -f /docker-entrypoint-initdb.d/001_initial_schema.sql
     
-    echo "✅ 数据库迁移完成"
+    # 插入初始数据
+    echo "🌱 插入初始数据..."
+    docker-compose exec postgres psql -U postgres -d octopus_messenger -f /docker-entrypoint-initdb.d/../seeds/initial_data.sql
+    
+    echo "✅ 数据库初始化完成"
 }
 
-# 测试配置
-test_configuration() {
-    echo ""
-    echo "🧪 测试配置..."
+# 启动所有服务
+start_services() {
+    echo "🚀 启动所有服务..."
     
-    # 测试健康检查端点
-    echo "启动服务进行测试..."
-    timeout 30s npm run dev:gateway &
-    gateway_pid=$!
+    # 启动所有服务
+    docker-compose up -d
     
-    sleep 10
+    echo "⏳ 等待服务启动..."
+    sleep 15
     
-    # 测试健康检查
-    if curl -s http://localhost:3000/health > /dev/null; then
-        echo "✅ 服务启动成功"
-    else
-        echo "⚠️  服务可能未正常启动"
-    fi
-    
-    # 停止测试服务
-    kill $gateway_pid 2>/dev/null || true
+    echo "✅ 所有服务启动完成"
 }
 
-# 显示启动说明
-show_usage() {
+# 显示服务状态
+show_status() {
     echo ""
-    echo "🎉 配置完成！"
-    echo "================================================"
+    echo "📊 服务状态："
+    echo "=============="
+    
+    services=(
+        "gateway:3000"
+        "message-processor:3001"
+        "ai-service:3002"
+        "task-service:3003"
+        "bot-manager:3004"
+        "admin-panel:3005"
+        "postgres:5432"
+        "redis:6379"
+        "mongodb:27017"
+        "nginx:80"
+        "prometheus:9090"
+        "grafana:3001"
+    )
+    
+    for service_port in "${services[@]}"; do
+        service=$(echo $service_port | cut -d: -f1)
+        port=$(echo $service_port | cut -d: -f2)
+        
+        if docker-compose ps $service | grep -q "Up"; then
+            echo "✅ $service (端口 $port) - 运行中"
+        else
+            echo "❌ $service (端口 $port) - 停止"
+        fi
+    done
+    
     echo ""
-    echo "下一步操作："
+    echo "🌐 访问地址："
+    echo "============="
+    echo "• 主页/管理面板: http://localhost"
+    echo "• API网关: http://localhost/api"
+    echo "• API文档: http://localhost/api/docs"
+    echo "• Grafana监控: http://localhost:3001 (admin/admin)"
+    echo "• Prometheus: http://localhost:9090"
     echo ""
-    echo "1. 启动所有服务："
-    echo "   npm run dev"
+    echo "🔐 默认管理员账户："
+    echo "=================="
+    echo "• 邮箱: admin@octopus-messenger.com"
+    echo "• 用户名: admin"
+    echo "• 密码: admin123"
     echo ""
-    echo "2. 或单独启动服务："
-    echo "   npm run dev:gateway        # API 网关 (端口 3000)"
-    echo "   npm run dev:admin-panel    # 管理面板 (端口 3005)"
-    echo ""
-    echo "3. 访问管理面板："
-    echo "   http://localhost:3005"
-    echo ""
-    echo "4. API 文档："
-    echo "   http://localhost:3000/api/docs"
-    echo ""
-    echo "5. 健康检查："
-    echo "   http://localhost:3000/health"
-    echo ""
-    echo "📚 更多配置选项请查看："
-    echo "   - docs/Local-Deployment-Guide.md"
-    echo "   - docs/Bot-Configuration-Guide.md"
-    echo "   - docs/CRM-Integration-Guide.md"
-    echo ""
-    echo "❓ 如有问题，请查看日志文件：logs/app.log"
 }
 
 # 主函数
 main() {
-    echo "开始配置 Octopus Messenger 本地开发环境..."
-    echo ""
+    echo "开始设置 Octopus Messenger 本地开发环境..."
     
     check_requirements
-    create_env_file
-    setup_database
-    setup_ai_service
+    setup_env
+    create_directories
     install_dependencies
+    start_databases
     init_database
-    show_usage
+    start_services
+    show_status
     
+    echo "🎉 本地开发环境设置完成！"
     echo ""
-    echo "✨ 配置完成！祝您使用愉快！"
+    echo "💡 有用的命令："
+    echo "• 查看日志: docker-compose logs -f [服务名]"
+    echo "• 停止所有服务: docker-compose down"
+    echo "• 重启服务: docker-compose restart [服务名]"
+    echo "• 清理并重新构建: docker-compose down -v && docker-compose up --build -d"
+    echo ""
+    echo "📚 更多信息请查看 docs/ 目录中的文档"
 }
 
 # 运行主函数

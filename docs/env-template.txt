@@ -83,12 +83,36 @@ WHATSAPP_PHONE_NUMBER_ID=请填入电话号码ID
 WHATSAPP_WEBHOOK_URL=https://your-domain.com/api/webhooks/whatsapp
 WHATSAPP_VERIFY_TOKEN=请设置验证token
 
+# Discord Bot
+DISCORD_ENABLED=false
+DISCORD_BOT_TOKEN=请从Discord Developer Portal获取
+DISCORD_APPLICATION_ID=请从Discord Developer Portal获取
+DISCORD_PUBLIC_KEY=请从Discord Developer Portal获取
+DISCORD_CLIENT_ID=请从Discord Developer Portal获取
+DISCORD_CLIENT_SECRET=请从Discord Developer Portal获取
+DISCORD_GUILD_ID=服务器ID（可选，用于测试）
+DISCORD_WEBHOOK_URL=https://your-domain.com/api/webhooks/discord
+
 # Slack Bot
 SLACK_ENABLED=false
 SLACK_BOT_TOKEN=xoxb-请从Slack App获取bot token
 SLACK_SIGNING_SECRET=请从Slack App获取signing secret
 SLACK_APP_TOKEN=xapp-请填入app token（如果使用Socket Mode）
 SLACK_SOCKET_MODE=false
+
+# Line Bot
+LINE_ENABLED=false
+LINE_CHANNEL_ACCESS_TOKEN=请从Line Developer Console获取
+LINE_CHANNEL_SECRET=请从Line Developer Console获取
+LINE_WEBHOOK_URL=https://your-domain.com/api/webhooks/line
+
+# 企业微信 Bot
+WEWORK_ENABLED=false
+WEWORK_CORP_ID=请填入企业ID
+WEWORK_AGENT_ID=请填入应用ID
+WEWORK_SECRET=请填入应用Secret
+WEWORK_WEBHOOK_URL=https://your-domain.com/api/webhooks/wework
+WEWORK_WEBHOOK_TOKEN=请设置webhook验证token
 
 # ============================================
 # CRM集成配置（可选）

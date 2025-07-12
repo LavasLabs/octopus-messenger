@@ -1,189 +1,275 @@
 version: '3.8'
 
 services:
+  # 数据库服务
+  postgres:
+    image: postgres:15-alpine
+    container_name: octopus-postgres
+    environment:
+      POSTGRES_DB: octopus_messenger
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PG_PASSWORD:-password}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - octopus-network
+
+  # Redis服务
+  redis:
+    image: redis:7-alpine
+    container_name: octopus-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - octopus-network
+
+  # MongoDB服务
+  mongodb:
+    image: mongo:6.0
+    container_name: octopus-mongodb
+    environment:
+      MONGO_INITDB_DATABASE: octopus_messenger
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    networks:
+      - octopus-network
+
   # 网关服务
   gateway:
     build:
-      context: ./services/gateway
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./docker/Dockerfile.gateway
+    container_name: octopus-gateway
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - PORT=3000
-      - DB_HOST=postgres
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=octopus_messenger
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=${PG_PASSWORD:-password}
       - REDIS_HOST=redis
-      - MONGODB_URL=mongodb://mongodb:27017/octopus_messenger
+      - REDIS_PORT=6379
+      - MONGODB_URI=mongodb://mongodb:27017/octopus_messenger
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
     depends_on:
-      - postgres
-      - redis
-      - mongodb
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - octopus-network
 
   # 消息处理服务
   message-processor:
     build:
-      context: ./services/message-processor
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./docker/Dockerfile.message-processor
+    container_name: octopus-message-processor
     ports:
       - "3001:3001"
     environment:
       - NODE_ENV=production
-      - PORT=3001
-      - DB_HOST=postgres
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=octopus_messenger
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=${PG_PASSWORD:-password}
       - REDIS_HOST=redis
-      - MONGODB_URL=mongodb://mongodb:27017/octopus_messenger
+      - REDIS_PORT=6379
+      - MONGODB_URI=mongodb://mongodb:27017/octopus_messenger
+      - MESSAGE_PROCESSOR_PORT=3001
     depends_on:
-      - postgres
-      - redis
-      - mongodb
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - octopus-network
 
   # AI服务
   ai-service:
     build:
-      context: ./services/ai-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./docker/Dockerfile.ai-service
+    container_name: octopus-ai-service
     ports:
       - "3002:3002"
     environment:
       - NODE_ENV=production
-      - PORT=3002
-      - DB_HOST=postgres
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=octopus_messenger
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=${PG_PASSWORD:-password}
       - REDIS_HOST=redis
-      - MONGODB_URL=mongodb://mongodb:27017/octopus_messenger
+      - REDIS_PORT=6379
+      - AI_SERVICE_PORT=3002
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - AI_OPENAI_ENABLED=${AI_OPENAI_ENABLED:-false}
+      - AI_CLAUDE_ENABLED=${AI_CLAUDE_ENABLED:-false}
     depends_on:
-      - postgres
-      - redis
-      - mongodb
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - octopus-network
 
   # 任务服务
   task-service:
     build:
-      context: ./services/task-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./docker/Dockerfile.task-service
+    container_name: octopus-task-service
     ports:
       - "3003:3003"
     environment:
       - NODE_ENV=production
-      - PORT=3003
-      - DB_HOST=postgres
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=octopus_messenger
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=${PG_PASSWORD:-password}
       - REDIS_HOST=redis
-      - MONGODB_URL=mongodb://mongodb:27017/octopus_messenger
+      - REDIS_PORT=6379
+      - TASK_SERVICE_PORT=3003
+      - LARK_ENABLED=${LARK_ENABLED:-false}
+      - LARK_APP_ID=${LARK_APP_ID}
+      - LARK_APP_SECRET=${LARK_APP_SECRET}
+      - SALESFORCE_ENABLED=${SALESFORCE_ENABLED:-false}
+      - NOTION_ENABLED=${NOTION_ENABLED:-false}
+      - JIRA_ENABLED=${JIRA_ENABLED:-false}
     depends_on:
-      - postgres
-      - redis
-      - mongodb
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - octopus-network
 
   # Bot管理服务
   bot-manager:
     build:
-      context: ./services/bot-manager
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./docker/Dockerfile.bot-manager
+    container_name: octopus-bot-manager
     ports:
       - "3004:3004"
     environment:
       - NODE_ENV=production
-      - PORT=3004
-      - DB_HOST=postgres
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=octopus_messenger
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=${PG_PASSWORD:-password}
       - REDIS_HOST=redis
-      - MONGODB_URL=mongodb://mongodb:27017/octopus_messenger
+      - REDIS_PORT=6379
+      - BOT_MANAGER_PORT=3004
+      - TELEGRAM_ENABLED=${TELEGRAM_ENABLED:-false}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - DISCORD_ENABLED=${DISCORD_ENABLED:-false}
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      - SLACK_ENABLED=${SLACK_ENABLED:-false}
+      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
+      - WHATSAPP_ENABLED=${WHATSAPP_ENABLED:-false}
+      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
     depends_on:
-      - postgres
-      - redis
-      - mongodb
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - octopus-network
 
   # 管理面板
   admin-panel:
     build:
-      context: ./services/admin-panel
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./docker/Dockerfile.admin-panel
+    container_name: octopus-admin-panel
     ports:
       - "3005:3005"
     environment:
       - NODE_ENV=production
-      - PORT=3005
-      - DB_HOST=postgres
+      - PG_HOST=postgres
+      - PG_PORT=5432
+      - PG_DATABASE=octopus_messenger
+      - PG_USERNAME=postgres
+      - PG_PASSWORD=${PG_PASSWORD:-password}
       - REDIS_HOST=redis
-      - MONGODB_URL=mongodb://mongodb:27017/octopus_messenger
+      - REDIS_PORT=6379
+      - ADMIN_PANEL_PORT=3005
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
     depends_on:
-      - postgres
-      - redis
-      - mongodb
-    volumes:
-      - ./logs:/app/logs
-    restart: unless-stopped
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3005/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
     networks:
       - octopus-network
 
-  # PostgreSQL数据库
-  postgres:
-    image: postgres:15-alpine
-    environment:
-      POSTGRES_DB: octopus_messenger
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./database/migrations:/docker-entrypoint-initdb.d
-    ports:
-      - "5432:5432"
-    restart: unless-stopped
-    networks:
-      - octopus-network
-
-  # Redis缓存
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    restart: unless-stopped
-    networks:
-      - octopus-network
-
-  # MongoDB
-  mongodb:
-    image: mongo:7
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: password
-      MONGO_INITDB_DATABASE: octopus_messenger
-    volumes:
-      - mongodb_data:/data/db
-    ports:
-      - "27017:27017"
-    restart: unless-stopped
-    networks:
-      - octopus-network
-
-  # Nginx负载均衡
+  # Nginx反向代理
   nginx:
     image: nginx:alpine
+    container_name: octopus-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -192,13 +278,14 @@ services:
       - ./ssl:/etc/nginx/ssl
     depends_on:
       - gateway
-    restart: unless-stopped
+      - admin-panel
     networks:
       - octopus-network
 
-  # Prometheus监控
+  # 监控服务
   prometheus:
     image: prom/prometheus:latest
+    container_name: octopus-prometheus
     ports:
       - "9090:9090"
     volumes:
@@ -209,34 +296,34 @@ services:
       - '--storage.tsdb.path=/prometheus'
       - '--web.console.libraries=/etc/prometheus/console_libraries'
       - '--web.console.templates=/etc/prometheus/consoles'
-    restart: unless-stopped
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
     networks:
       - octopus-network
 
-  # Grafana监控面板
+  # 数据可视化
   grafana:
     image: grafana/grafana:latest
+    container_name: octopus-grafana
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
-      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
-    restart: unless-stopped
     networks:
       - octopus-network
-
-networks:
-  octopus-network:
-    driver: bridge
 
 volumes:
   postgres_data:
   redis_data:
   mongodb_data:
   prometheus_data:
-  grafana_data: 
+  grafana_data:
+
+networks:
+  octopus-network:
+    driver: bridge 
