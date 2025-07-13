@@ -10,7 +10,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 
 // 导入配置和工具
 const config = require('../../../config/config');
-const logger = require('./utils/logger');
+const { logger } = require('./utils/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { authenticateToken } = require('./middleware/auth');
 
