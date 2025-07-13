@@ -1,24 +1,24 @@
 # Octopus Messenger
 
-一个多平台消息处理和任务管理系统，支持Telegram、WhatsApp、Slack等平台的机器人集成，通过AI智能分类客户意见并自动在Lark中创建任务。
+A multi-platform messaging and task management system that supports bot integration across Telegram, WhatsApp, Slack, and other platforms, intelligently categorizing customer feedback through AI and automatically creating tasks in Lark.
 
-## 功能特性
+## Features
 
-- 🤖 多平台Bot支持（Telegram、WhatsApp、Slack、Discord、Line、企业微信）
-- 🧠 AI智能分类和过滤（Claude、OpenAI）
-- 📝 多CRM系统集成（16+主流CRM支持）
-- 🏗️ 微服务架构设计
-- 🔧 Docker容器化部署
-- 📊 实时监控和日志
-- 🔐 多租户SAAS架构
+- 🤖 Multi-platform bot support (Telegram, WhatsApp, Slack, Discord, Line, WeWork)
+- 🧠 AI-powered classification and filtering (Claude, OpenAI)
+- 📝 Multi-CRM system integration (16+ mainstream CRM support)
+- 🏗️ Microservices architecture design
+- 🔧 Docker containerized deployment
+- 📊 Real-time monitoring and logging
+- 🔐 Multi-tenant SaaS architecture
 
-## 系统架构
+## System Architecture
 
-以下是Octopus Messenger的多CRM集成架构图：
+The following diagram shows the multi-CRM integration architecture of Octopus Messenger:
 
 ```mermaid
 graph TD
-    %% 外部平台
+    %% External Platforms
     TG[Telegram Bot]
     WA[WhatsApp Bot]  
     SL[Slack Bot]
@@ -26,53 +26,53 @@ graph TD
     LN[Line Bot]
     WW[WeWork Bot]
     
-    %% 网关层
+    %% Gateway Layer
     GW[Gateway API<br/>Port: 3000]
     
-    %% 微服务层
+    %% Microservices Layer
     MP[Message Processor<br/>Port: 3001]
     AI[AI Service<br/>Port: 3002]
     TS[Task Service<br/>Port: 3003]
     BM[Bot Manager<br/>Port: 3004]
     AP[Admin Panel<br/>Port: 3005]
     
-    %% 数据存储层
-    PG[(PostgreSQL<br/>关系型数据)]
-    RD[(Redis<br/>缓存/队列)]
-    MG[(MongoDB<br/>文档存储)]
+    %% Data Storage Layer
+    PG[(PostgreSQL<br/>Relational Data)]
+    RD[(Redis<br/>Cache/Queue)]
+    MG[(MongoDB<br/>Document Storage)]
     
-    %% 外部AI API
+    %% External AI APIs
     OAI[OpenAI API]
     CL[Claude API]
     
-    %% CRM系统 - 企业级
+    %% CRM Systems - Enterprise
     SF[Salesforce]
     D365[Microsoft Dynamics 365]
     HS[HubSpot]
     
-    %% CRM系统 - 中国本土
-    DT[钉钉]
-    WW[企业微信]
-    LK[飞书]
+    %% CRM Systems - China Local
+    DT[DingTalk]
+    WW[WeWork]
+    LK[Feishu]
     
-    %% CRM系统 - 现代化工具
+    %% CRM Systems - Modern Tools
     NT[Notion]
     AT[Airtable]
     MD[Monday.com]
     
-    %% CRM系统 - 项目管理
+    %% CRM Systems - Project Management
     JR[Jira]
     AS[Asana]
     TR[Trello]
     
-    %% 监控层
+    %% Monitoring Layer
     PR[Prometheus<br/>Port: 9090]
     GF[Grafana<br/>Port: 3001]
     
-    %% 负载均衡
+    %% Load Balancer
     NX[Nginx<br/>Port: 80/443]
     
-    %% 数据流
+    %% Data Flow
     TG -->|Webhook| GW
     WA -->|Webhook| GW
     SL -->|Webhook| GW
@@ -82,61 +82,61 @@ graph TD
     
     NX --> GW
     
-    GW -->|消息处理| MP
-    GW -->|AI分析| AI
-    GW -->|任务管理| TS
-    GW -->|Bot配置| BM
-    GW -->|管理界面| AP
+    GW -->|Message Processing| MP
+    GW -->|AI Analysis| AI
+    GW -->|Task Management| TS
+    GW -->|Bot Configuration| BM
+    GW -->|Admin Interface| AP
     
-    MP -->|存储消息| PG
-    MP -->|缓存| RD
-    MP -->|队列| RD
-    MP -->|调用AI| AI
+    MP -->|Store Messages| PG
+    MP -->|Cache| RD
+    MP -->|Queue| RD
+    MP -->|Call AI| AI
     
     AI -->|OpenAI| OAI
     AI -->|Claude| CL
-    AI -->|分类结果| PG
-    AI -->|创建任务| TS
+    AI -->|Classification Results| PG
+    AI -->|Create Tasks| TS
     
-    %% CRM集成路由
-    TS -->|CRM Manager| CRM{CRM路由策略}
+    %% CRM Integration Routing
+    TS -->|CRM Manager| CRM{CRM Routing Strategy}
     
-    %% 主备模式
-    CRM -->|主CRM| SF
-    CRM -->|备份CRM| HS
+    %% Primary-Backup Mode
+    CRM -->|Primary CRM| SF
+    CRM -->|Backup CRM| HS
     
-    %% 分类路由
-    CRM -->|销售线索| SF
-    CRM -->|技术支持| JR
-    CRM -->|客户服务| DT
-    CRM -->|产品反馈| NT
+    %% Classification Routing
+    CRM -->|Sales Leads| SF
+    CRM -->|Technical Support| JR
+    CRM -->|Customer Service| DT
+    CRM -->|Product Feedback| NT
     
-    %% 并行同步
-    CRM -->|同步到| D365
-    CRM -->|同步到| WW
-    CRM -->|同步到| AS
+    %% Parallel Synchronization
+    CRM -->|Sync to| D365
+    CRM -->|Sync to| WW
+    CRM -->|Sync to| AS
     
-    TS -->|任务数据| PG
-    TS -->|缓存| RD
+    TS -->|Task Data| PG
+    TS -->|Cache| RD
     
-    BM -->|Bot配置| PG
-    BM -->|状态缓存| RD
+    BM -->|Bot Configuration| PG
+    BM -->|Status Cache| RD
     
-    AP -->|管理数据| PG
-    AP -->|实时数据| RD
-    AP -->|日志分析| MG
+    AP -->|Management Data| PG
+    AP -->|Real-time Data| RD
+    AP -->|Log Analysis| MG
     
-    %% 监控数据流
-    GW -.->|指标| PR
-    MP -.->|指标| PR
-    AI -.->|指标| PR
-    TS -.->|指标| PR
-    BM -.->|指标| PR
-    AP -.->|指标| PR
+    %% Monitoring Data Flow
+    GW -.->|Metrics| PR
+    MP -.->|Metrics| PR
+    AI -.->|Metrics| PR
+    TS -.->|Metrics| PR
+    BM -.->|Metrics| PR
+    AP -.->|Metrics| PR
     
-    PR -->|可视化| GF
+    PR -->|Visualization| GF
     
-    %% 样式定义
+    %% Style Definitions
     classDef platform fill:#e1f5fe,stroke:#01579b,stroke-width:2px
     classDef service fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef database fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
@@ -162,15 +162,15 @@ graph TD
     class CRM router
 ```
 
-### 多CRM集成策略
+### Multi-CRM Integration Strategy
 
-1. **主备模式**: 主CRM失败时自动切换到备用CRM
-2. **分类路由**: 根据消息分类路由到不同的CRM系统
-3. **并行同步**: 同时同步到多个CRM系统以确保数据一致性
+1. **Primary-Backup Mode**: Automatically switches to backup CRM when primary CRM fails
+2. **Classification Routing**: Routes messages to different CRM systems based on classification
+3. **Parallel Synchronization**: Synchronizes to multiple CRM systems simultaneously to ensure data consistency
 
-## 快速开始
+## Quick Start
 
-### 环境要求
+### Prerequisites
 
 - Docker & Docker Compose
 - Node.js 18+
@@ -178,120 +178,120 @@ graph TD
 - PostgreSQL 14+
 - Redis 7+
 
-### 一键安装部署
+### One-Click Installation & Deployment
 
-#### 🚀 自动配置脚本（推荐）
+#### 🚀 Automated Configuration Script (Recommended)
 ```bash
-# 克隆项目
+# Clone the repository
 git clone https://github.com/LavasLabs/octopus-messenger.git
 cd octopus-messenger
 
-# 运行自动配置脚本
+# Run automated setup script
 ./scripts/setup-local.sh
 ```
 
-#### 📝 手动配置
-1. 克隆项目
+#### 📝 Manual Configuration
+1. Clone the repository
 ```bash
 git clone https://github.com/LavasLabs/octopus-messenger.git
 cd octopus-messenger
 ```
 
-2. 配置环境变量
+2. Configure environment variables
 ```bash
 cp docs/env-template.txt .env
-# 编辑.env文件，填入相关API密钥
+# Edit .env file and fill in relevant API keys
 ```
 
-3. 启动服务
+3. Start services
 ```bash
-# 使用Docker（推荐）
+# Using Docker (Recommended)
 docker-compose up -d
 
-# 或手动启动
+# Or manual startup
 npm install
 npm run db:migrate
 npm run dev
 ```
 
-**💡 提示**: 详细配置说明请查看[本地部署指南](docs/Local-Deployment-Guide.md)
+**💡 Tip**: For detailed configuration instructions, please check the [Local Deployment Guide](docs/Local-Deployment-Guide.md)
 
-## 服务组件
+## Service Components
 
-| 服务 | 端口 | 描述 |
-|------|------|------|
-| Gateway API | 3000 | 主API网关 |
-| Message Processor | 3001 | 消息处理服务 |
-| AI Service | 3002 | AI分类服务 |
-| Task Service | 3003 | 任务管理服务 |
-| Bot Manager | 3004 | Bot管理服务 |
-| Admin Panel | 3005 | 管理面板 |
+| Service | Port | Description |
+|---------|------|-------------|
+| Gateway API | 3000 | Main API Gateway |
+| Message Processor | 3001 | Message Processing Service |
+| AI Service | 3002 | AI Classification Service |
+| Task Service | 3003 | Task Management Service |
+| Bot Manager | 3004 | Bot Management Service |
+| Admin Panel | 3005 | Administration Panel |
 
-## 支持的CRM系统
+## Supported CRM Systems
 
-### 🏢 企业级CRM
-- **Salesforce** - 全球最大的CRM平台
-- **Microsoft Dynamics 365** - 微软企业解决方案  
-- **HubSpot** - 入站营销CRM
+### 🏢 Enterprise CRM
+- **Salesforce** - World's largest CRM platform
+- **Microsoft Dynamics 365** - Microsoft enterprise solution  
+- **HubSpot** - Inbound marketing CRM
 
-### 📱 中国本土CRM
-- **钉钉** - 阿里巴巴企业协作平台
-- **企业微信** - 腾讯企业通讯解决方案
-- **飞书** - 字节跳动协作平台
+### 📱 China Local CRM
+- **DingTalk** - Alibaba enterprise collaboration platform
+- **WeWork** - Tencent enterprise communication solution
+- **Feishu** - ByteDance collaboration platform
 
-### 🚀 现代化工具
-- **Notion** - 全能工作空间
-- **Airtable** - 可视化数据库
-- **Monday.com** - 工作操作系统
+### 🚀 Modern Tools
+- **Notion** - All-in-one workspace
+- **Airtable** - Visual database
+- **Monday.com** - Work operating system
 
-### 📋 项目管理工具
-- **Jira** - Atlassian项目管理
-- **Asana** - 团队协作平台
-- **ClickUp** - 全功能生产力平台
-- **Linear** - 现代化问题跟踪
-- **Trello** - 看板式项目管理
+### 📋 Project Management Tools
+- **Jira** - Atlassian project management
+- **Asana** - Team collaboration platform
+- **ClickUp** - All-in-one productivity platform
+- **Linear** - Modern issue tracking
+- **Trello** - Kanban-style project management
 
-### 💼 其他专业工具
-- **Zoho CRM** - 一体化业务套件
-- **Pipedrive** - 销售管道CRM
+### 💼 Other Professional Tools
+- **Zoho CRM** - All-in-one business suite
+- **Pipedrive** - Sales pipeline CRM
 
-## 开发
+## Development
 
-### 本地开发
+### Local Development
 
 ```bash
-# 安装依赖
+# Install dependencies
 npm install
 
-# 启动开发环境
+# Start development environment
 npm run dev
 
-# 运行测试
+# Run tests
 npm run test
 
-# 构建生产版本
+# Build for production
 npm run build
 ```
 
-### API文档
+### API Documentation
 
-访问 `http://localhost:3000/api/docs` 查看完整API文档
+Visit `http://localhost:3000/api/docs` to view complete API documentation
 
-## 📖 文档
+## 📖 Documentation
 
-- [快速开始](docs/Quick-Start.md) - 5分钟快速体验系统
-- [本地部署指南](docs/Local-Deployment-Guide.md) - 本地开发环境配置
-- [Bot配置指南](docs/Bot-Configuration-Guide.md) - 详细的Bot配置步骤
-- [CRM集成指南](docs/CRM-Integration-Guide.md) - 多CRM系统集成配置
-- [用户使用指南](docs/User-Guide.md) - 完整的用户手册
-- [API文档](docs/API-Documentation.md) - REST API接口文档
-- [部署指南](docs/Deployment-Guide.md) - 生产环境部署和运维指南
-- [项目架构](PROJECT-STRUCTURE.md) - 项目结构说明
+- [Quick Start](docs/Quick-Start.md) - 5-minute quick system experience
+- [Local Deployment Guide](docs/Local-Deployment-Guide.md) - Local development environment setup
+- [Bot Configuration Guide](docs/Bot-Configuration-Guide.md) - Detailed bot configuration steps
+- [CRM Integration Guide](docs/CRM-Integration-Guide.md) - Multi-CRM system integration configuration
+- [User Guide](docs/User-Guide.md) - Complete user manual
+- [API Documentation](docs/API-Documentation.md) - REST API interface documentation
+- [Deployment Guide](docs/Deployment-Guide.md) - Production environment deployment and operations guide
+- [Project Structure](PROJECT-STRUCTURE.md) - Project structure description
 
-## 贡献
+## Contributing
 
-欢迎提交Issue和Pull Request！
+Issues and Pull Requests are welcome!
 
-## 许可证
+## License
 
 MIT License 
