@@ -92,12 +92,12 @@ app.get('/health', (req, res) => {
 // API路由
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/users', authenticateToken, require('./routes/users'));
-// app.use('/api/tenants', authenticateToken, require('./routes/tenants')); // 文件不存在，暂时注释
+app.use('/api/tenants', authenticateToken, require('./routes/tenants'));
 app.use('/api/bots', authenticateToken, require('./routes/bots'));
 app.use('/api/merchants', authenticateToken, require('./routes/merchants')); // 新增：商户管理路由
 app.use('/api/messages', authenticateToken, require('./routes/messages'));
 app.use('/api/tasks', authenticateToken, require('./routes/tasks'));
-// app.use('/api/classifications', authenticateToken, require('./routes/classifications')); // 文件不存在，暂时注释
+app.use('/api/classifications', authenticateToken, require('./routes/classifications'));
 app.use('/api/ai', authenticateToken, require('./routes/ai'));
 app.use('/api/user-analytics', authenticateToken, require('./routes/userAnalytics'));
 app.use('/api/groups', authenticateToken, require('./routes/groupManagement'));
