@@ -1,0 +1,33 @@
+FROM node:18-alpine
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制package.json文件
+COPY package*.json ./
+COPY services/bot-manager/package*.json ./services/bot-manager/
+
+# 安装依赖
+RUN npm ci --only=production
+
+# 复制源代码
+COPY services/bot-manager/ ./services/bot-manager/
+COPY config/ ./config/
+
+# 创建非root用户
+RUN addgroup -g 1001 -S nodejs
+RUN adduser -S octopus -u 1001
+
+# 设置权限
+RUN chown -R octopus:nodejs /app
+USER octopus
+
+# 暴露端口
+EXPOSE 3004
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:3004/health || exit 1
+
+# 启动命令
+CMD ["node", "services/bot-manager/src/index.js"] 
