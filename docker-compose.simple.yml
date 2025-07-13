@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: octopus-postgres
+    environment:
+      POSTGRES_DB: octopus_messenger
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: quickstart123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: octopus-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass quickstart123
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "quickstart123", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  ai-service:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile.ai-service
+    container_name: octopus-ai-service
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=octopus_messenger
+      - DB_USER=postgres
+      - DB_PASSWORD=quickstart123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=quickstart123
+      - OPENAI_API_KEY=sk-fake-key-for-testing
+      - CLAUDE_API_KEY=fake-claude-key-for-testing
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  redis_data:
