@@ -5,9 +5,9 @@
 </div>
 {{/if}}
 
-<div class="dashboard-container">
+<div class="dashboard-container p-4">
     <!-- 页面标题 -->
-    <div class="page-header mb-4">
+    <div class="page-header mb-5">
         <div class="row align-items-center">
             <div class="col">
                 <h1 class="page-title">
@@ -29,7 +29,7 @@
     </div>
 
     <!-- 统计卡片 -->
-    <div class="row mb-4">
+    <div class="row mb-5">
         <div class="col-xl-3 col-md-6">
             <div class="stats-card">
                 <div class="stats-card-body">
@@ -237,5 +237,62 @@ setInterval(function() {
     // 这里可以实现AJAX更新系统状态
     console.log('Auto refresh system status');
 }, 30000); // 30秒刷新一次
-</script> 
-</script> 
+</script>
+
+<style>
+.dashboard-container {
+    background-color: #f8f9fa;
+    min-height: calc(100vh - 60px);
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    border-bottom: 1px solid #e9ecef;
+    padding: 1.25rem;
+}
+
+.btn-lg {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.1rem;
+}
+
+.activity-item {
+    transition: background-color 0.3s ease;
+}
+
+.activity-item:hover {
+    background-color: #f8f9fa;
+}
+</style> 

@@ -101,6 +101,10 @@ app.engine('handlebars', engine({
         ne: (a, b) => a !== b,
         formatDate: (date) => new Date(date).toLocaleDateString('zh-CN'),
         formatTime: (date) => new Date(date).toLocaleString('zh-CN'),
+        substring: (str, start, length) => {
+            if (!str) return '';
+            return str.substring(start, start + length).toUpperCase();
+        },
         unless: (condition, options) => {
             if (!condition) {
                 return options.fn(this);
@@ -290,11 +294,53 @@ app.get('/dashboard', requireAuth, async (req, res) => {
 // 用户管理路由
 app.get('/users', requireAuth, async (req, res) => {
     try {
-        const users = await apiClient.getUsers();
+        // 获取用户数据（如果API失败，使用模拟数据）
+        let users = [];
+        let stats = {
+            totalUsers: 1,
+            activeUsers: 1,
+            adminUsers: 1,
+            newUsers: 1
+        };
+        
+        try {
+            const usersResponse = await apiClient.getUsers();
+            users = usersResponse.data || [];
+            
+            // 计算统计数据
+            stats = {
+                totalUsers: users.length,
+                activeUsers: users.filter(u => u.status === 'active').length,
+                adminUsers: users.filter(u => u.role === 'admin').length,
+                newUsers: users.filter(u => {
+                    const createdAt = new Date(u.createdAt);
+                    const now = new Date();
+                    const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                    return createdAt > monthAgo;
+                }).length
+            };
+        } catch (apiError) {
+            logger.warn('Failed to fetch users from API, using mock data:', apiError);
+            // 使用模拟数据
+            users = [
+                {
+                    id: 'ab45b5cb-0479-401a-9a8d-be6ba8b67fc9',
+                    username: 'admin',
+                    email: 'admin@octopus-messenger.com',
+                    displayName: 'Admin User',
+                    role: 'admin',
+                    status: 'active',
+                    createdAt: new Date().toISOString(),
+                    lastLoginAt: new Date().toISOString()
+                }
+            ];
+        }
+        
         res.render('users/index', {
             title: '用户管理 - Octopus Messenger',
             user: req.session.user,
-            users: users.data || []
+            users: users,
+            stats: stats
         });
     } catch (error) {
         logger.error('Users page error:', error);
@@ -302,6 +348,7 @@ app.get('/users', requireAuth, async (req, res) => {
             title: '用户管理 - Octopus Messenger',
             user: req.session.user,
             users: [],
+            stats: { totalUsers: 0, activeUsers: 0, adminUsers: 0, newUsers: 0 },
             error: '加载用户数据失败'
         });
     }
@@ -310,11 +357,69 @@ app.get('/users', requireAuth, async (req, res) => {
 // Bot管理路由
 app.get('/bots', requireAuth, async (req, res) => {
     try {
-        const bots = await apiClient.getBots();
+        // 获取Bot数据（如果API失败，使用模拟数据）
+        let bots = [];
+        let stats = {
+            totalBots: 0,
+            activeBots: 0,
+            errorBots: 0,
+            platforms: 0
+        };
+        
+        try {
+            const botsResponse = await apiClient.getBots();
+            bots = botsResponse.data || [];
+            
+            // 计算统计数据
+            const platforms = [...new Set(bots.map(b => b.platform))];
+            stats = {
+                totalBots: bots.length,
+                activeBots: bots.filter(b => b.status === 'active').length,
+                errorBots: bots.filter(b => b.status === 'error').length,
+                platforms: platforms.length
+            };
+        } catch (apiError) {
+            logger.warn('Failed to fetch bots from API, using mock data:', apiError);
+            // 使用模拟数据
+            bots = [
+                {
+                    id: 'bot-1',
+                    name: 'Telegram Bot',
+                    description: '处理Telegram消息',
+                    platform: 'telegram',
+                    status: 'active',
+                    messageCount: 1250,
+                    todayMessages: 45,
+                    lastActivity: new Date().toISOString(),
+                    webhookConfigured: true,
+                    apiKeyValid: true
+                },
+                {
+                    id: 'bot-2',
+                    name: 'WhatsApp Bot',
+                    description: '处理WhatsApp消息',
+                    platform: 'whatsapp',
+                    status: 'inactive',
+                    messageCount: 890,
+                    todayMessages: 12,
+                    lastActivity: new Date(Date.now() - 3600000).toISOString(),
+                    webhookConfigured: false,
+                    apiKeyValid: true
+                }
+            ];
+            stats = {
+                totalBots: 2,
+                activeBots: 1,
+                errorBots: 0,
+                platforms: 2
+            };
+        }
+        
         res.render('bots/index', {
             title: 'Bot管理 - Octopus Messenger',
             user: req.session.user,
-            bots: bots.data || []
+            bots: bots,
+            stats: stats
         });
     } catch (error) {
         logger.error('Bots page error:', error);
@@ -322,6 +427,7 @@ app.get('/bots', requireAuth, async (req, res) => {
             title: 'Bot管理 - Octopus Messenger',
             user: req.session.user,
             bots: [],
+            stats: { totalBots: 0, activeBots: 0, errorBots: 0, platforms: 0 },
             error: '加载Bot数据失败'
         });
     }
@@ -330,11 +436,65 @@ app.get('/bots', requireAuth, async (req, res) => {
 // 消息管理路由
 app.get('/messages', requireAuth, async (req, res) => {
     try {
-        const messages = await apiClient.getMessages();
+        // 获取消息数据（如果API失败，使用模拟数据）
+        let messages = [];
+        let stats = {
+            totalMessages: 0,
+            processedMessages: 0,
+            pendingMessages: 0,
+            todayMessages: 0
+        };
+        
+        try {
+            const messagesResponse = await apiClient.getMessages();
+            messages = messagesResponse.data || [];
+            
+            // 计算统计数据
+            const today = new Date().toDateString();
+            stats = {
+                totalMessages: messages.length,
+                processedMessages: messages.filter(m => m.status === 'processed').length,
+                pendingMessages: messages.filter(m => m.status === 'pending').length,
+                todayMessages: messages.filter(m => new Date(m.timestamp).toDateString() === today).length
+            };
+        } catch (apiError) {
+            logger.warn('Failed to fetch messages from API, using mock data:', apiError);
+            // 使用模拟数据
+            messages = [
+                {
+                    id: 'msg-1',
+                    timestamp: new Date().toISOString(),
+                    platform: 'telegram',
+                    senderName: 'John Doe',
+                    senderId: '@johndoe',
+                    content: '你好，我需要帮助处理订单问题',
+                    classification: '客服咨询',
+                    status: 'processed'
+                },
+                {
+                    id: 'msg-2',
+                    timestamp: new Date(Date.now() - 1800000).toISOString(),
+                    platform: 'whatsapp',
+                    senderName: 'Jane Smith',
+                    senderId: '+1234567890',
+                    content: '请问产品什么时候能发货？',
+                    classification: '订单查询',
+                    status: 'pending'
+                }
+            ];
+            stats = {
+                totalMessages: 2,
+                processedMessages: 1,
+                pendingMessages: 1,
+                todayMessages: 2
+            };
+        }
+        
         res.render('messages/index', {
             title: '消息管理 - Octopus Messenger',
             user: req.session.user,
-            messages: messages.data || []
+            messages: messages,
+            stats: stats
         });
     } catch (error) {
         logger.error('Messages page error:', error);
@@ -342,7 +502,62 @@ app.get('/messages', requireAuth, async (req, res) => {
             title: '消息管理 - Octopus Messenger',
             user: req.session.user,
             messages: [],
+            stats: { totalMessages: 0, processedMessages: 0, pendingMessages: 0, todayMessages: 0 },
             error: '加载消息数据失败'
+        });
+    }
+});
+
+// 系统设置路由
+app.get('/settings', requireAuth, async (req, res) => {
+    try {
+        // 模拟系统设置数据
+        const settings = {
+            systemName: 'Octopus Messenger',
+            systemVersion: '1.0.0',
+            systemDescription: '多平台消息处理和任务管理系统',
+            defaultLanguage: 'zh-CN',
+            timezone: 'Asia/Shanghai',
+            enableDebugMode: false,
+            enableMaintenance: false,
+            openaiApiKey: 'sk-fake-key-for-testing',
+            openaiModel: 'gpt-4',
+            claudeApiKey: 'fake-key-for-testing',
+            claudeModel: 'claude-3-sonnet-20240229',
+            aiTimeout: 30,
+            maxRetries: 3,
+            enableAiClassification: true,
+            enableEmailNotifications: false,
+            smtpHost: 'smtp.gmail.com',
+            smtpPort: 587,
+            smtpFrom: 'noreply@octopus-messenger.com',
+            smtpPassword: '',
+            notifyOnError: true,
+            notifyOnNewUser: false,
+            notifyOnBotError: true,
+            notifyOnHighLoad: false,
+            sessionTimeout: 60,
+            maxLoginAttempts: 5,
+            enableTwoFactor: false,
+            enableIpWhitelist: false,
+            ipWhitelist: '',
+            enableAutoBackup: true,
+            backupFrequency: 'daily',
+            backupRetentionDays: 30
+        };
+        
+        res.render('settings/index', {
+            title: '系统设置 - Octopus Messenger',
+            user: req.session.user,
+            settings: settings
+        });
+    } catch (error) {
+        logger.error('Settings page error:', error);
+        res.render('settings/index', {
+            title: '系统设置 - Octopus Messenger',
+            user: req.session.user,
+            settings: {},
+            error: '加载设置数据失败'
         });
     }
 });

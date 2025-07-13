@@ -1,0 +1,472 @@
+{{#if error}}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{error}}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{{/if}}
+
+{{#if success}}
+<div class="alert alert-success alert-dismissible fade show" role="alert">
+    <i class="fas fa-check-circle me-2"></i>{{success}}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{{/if}}
+
+<div class="settings-container p-4">
+    <!-- 页面标题 -->
+    <div class="page-header mb-5">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="page-title">
+                    <i class="fas fa-cog me-2"></i>系统设置
+                </h1>
+                <p class="text-muted">管理系统配置和参数</p>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" onclick="saveAllSettings()">
+                        <i class="fas fa-save me-2"></i>保存所有设置
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="resetSettings()">
+                        <i class="fas fa-undo me-2"></i>重置
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 设置导航 -->
+        <div class="col-lg-3">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">设置分类</h6>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="#general" class="list-group-item list-group-item-action active" data-bs-toggle="pill">
+                        <i class="fas fa-cogs me-2"></i>基本设置
+                    </a>
+                    <a href="#ai" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="fas fa-brain me-2"></i>AI配置
+                    </a>
+                    <a href="#notifications" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="fas fa-bell me-2"></i>通知设置
+                    </a>
+                    <a href="#security" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="fas fa-shield-alt me-2"></i>安全设置
+                    </a>
+                    <a href="#backup" class="list-group-item list-group-item-action" data-bs-toggle="pill">
+                        <i class="fas fa-database me-2"></i>备份设置
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 设置内容 -->
+        <div class="col-lg-9">
+            <div class="tab-content">
+                <!-- 基本设置 -->
+                <div class="tab-pane fade show active" id="general">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-cogs me-2"></i>基本设置
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="generalForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">系统名称</label>
+                                            <input type="text" class="form-control" name="systemName" value="{{settings.systemName}}" placeholder="Octopus Messenger">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">系统版本</label>
+                                            <input type="text" class="form-control" name="systemVersion" value="{{settings.systemVersion}}" placeholder="1.0.0" readonly>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">默认语言</label>
+                                            <select class="form-select" name="defaultLanguage">
+                                                <option value="zh-CN" {{#if (eq settings.defaultLanguage 'zh-CN')}}selected{{/if}}>中文</option>
+                                                <option value="en-US" {{#if (eq settings.defaultLanguage 'en-US')}}selected{{/if}}>English</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">时区</label>
+                                            <select class="form-select" name="timezone">
+                                                <option value="Asia/Shanghai" {{#if (eq settings.timezone 'Asia/Shanghai')}}selected{{/if}}>Asia/Shanghai</option>
+                                                <option value="UTC" {{#if (eq settings.timezone 'UTC')}}selected{{/if}}>UTC</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">系统描述</label>
+                                    <textarea class="form-control" name="systemDescription" rows="3" placeholder="多平台消息处理和任务管理系统">{{settings.systemDescription}}</textarea>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="enableDebugMode" {{#if settings.enableDebugMode}}checked{{/if}}>
+                                            <label class="form-check-label">启用调试模式</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="enableMaintenance" {{#if settings.enableMaintenance}}checked{{/if}}>
+                                            <label class="form-check-label">维护模式</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- AI配置 -->
+                <div class="tab-pane fade" id="ai">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-brain me-2"></i>AI配置
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="aiForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">OpenAI API Key</label>
+                                            <input type="password" class="form-control" name="openaiApiKey" value="{{settings.openaiApiKey}}" placeholder="sk-...">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">OpenAI 模型</label>
+                                            <select class="form-select" name="openaiModel">
+                                                <option value="gpt-4" {{#if (eq settings.openaiModel 'gpt-4')}}selected{{/if}}>GPT-4</option>
+                                                <option value="gpt-3.5-turbo" {{#if (eq settings.openaiModel 'gpt-3.5-turbo')}}selected{{/if}}>GPT-3.5 Turbo</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Claude API Key</label>
+                                            <input type="password" class="form-control" name="claudeApiKey" value="{{settings.claudeApiKey}}" placeholder="sk-ant-...">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Claude 模型</label>
+                                            <select class="form-select" name="claudeModel">
+                                                <option value="claude-3-sonnet-20240229" {{#if (eq settings.claudeModel 'claude-3-sonnet-20240229')}}selected{{/if}}>Claude 3 Sonnet</option>
+                                                <option value="claude-3-haiku-20240307" {{#if (eq settings.claudeModel 'claude-3-haiku-20240307')}}selected{{/if}}>Claude 3 Haiku</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">AI响应超时 (秒)</label>
+                                            <input type="number" class="form-control" name="aiTimeout" value="{{settings.aiTimeout}}" min="5" max="60">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">最大重试次数</label>
+                                            <input type="number" class="form-control" name="maxRetries" value="{{settings.maxRetries}}" min="1" max="5">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="enableAiClassification" {{#if settings.enableAiClassification}}checked{{/if}}>
+                                    <label class="form-check-label">启用AI消息分类</label>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 通知设置 -->
+                <div class="tab-pane fade" id="notifications">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-bell me-2"></i>通知设置
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="notificationForm">
+                                <div class="mb-3">
+                                    <label class="form-label">邮件通知</label>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" name="enableEmailNotifications" {{#if settings.enableEmailNotifications}}checked{{/if}}>
+                                        <label class="form-check-label">启用邮件通知</label>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">SMTP服务器</label>
+                                            <input type="text" class="form-control" name="smtpHost" value="{{settings.smtpHost}}" placeholder="smtp.gmail.com">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">SMTP端口</label>
+                                            <input type="number" class="form-control" name="smtpPort" value="{{settings.smtpPort}}" placeholder="587">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">发送邮箱</label>
+                                            <input type="email" class="form-control" name="smtpFrom" value="{{settings.smtpFrom}}" placeholder="noreply@example.com">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">邮箱密码</label>
+                                            <input type="password" class="form-control" name="smtpPassword" value="{{settings.smtpPassword}}">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">通知类型</label>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="notifyOnError" {{#if settings.notifyOnError}}checked{{/if}}>
+                                                <label class="form-check-label">系统错误通知</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="notifyOnNewUser" {{#if settings.notifyOnNewUser}}checked{{/if}}>
+                                                <label class="form-check-label">新用户注册通知</label>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="notifyOnBotError" {{#if settings.notifyOnBotError}}checked{{/if}}>
+                                                <label class="form-check-label">Bot错误通知</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="notifyOnHighLoad" {{#if settings.notifyOnHighLoad}}checked{{/if}}>
+                                                <label class="form-check-label">高负载通知</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 安全设置 -->
+                <div class="tab-pane fade" id="security">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-shield-alt me-2"></i>安全设置
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="securityForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">会话超时 (分钟)</label>
+                                            <input type="number" class="form-control" name="sessionTimeout" value="{{settings.sessionTimeout}}" min="5" max="1440">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">最大登录尝试次数</label>
+                                            <input type="number" class="form-control" name="maxLoginAttempts" value="{{settings.maxLoginAttempts}}" min="3" max="10">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="enableTwoFactor" {{#if settings.enableTwoFactor}}checked{{/if}}>
+                                            <label class="form-check-label">启用双因素认证</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="enableIpWhitelist" {{#if settings.enableIpWhitelist}}checked{{/if}}>
+                                            <label class="form-check-label">启用IP白名单</label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">IP白名单 (每行一个IP)</label>
+                                    <textarea class="form-control" name="ipWhitelist" rows="4" placeholder="192.168.1.1&#10;10.0.0.1">{{settings.ipWhitelist}}</textarea>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 备份设置 -->
+                <div class="tab-pane fade" id="backup">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-database me-2"></i>备份设置
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="backupForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" type="checkbox" name="enableAutoBackup" {{#if settings.enableAutoBackup}}checked{{/if}}>
+                                            <label class="form-check-label">启用自动备份</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">备份频率</label>
+                                            <select class="form-select" name="backupFrequency">
+                                                <option value="daily" {{#if (eq settings.backupFrequency 'daily')}}selected{{/if}}>每日</option>
+                                                <option value="weekly" {{#if (eq settings.backupFrequency 'weekly')}}selected{{/if}}>每周</option>
+                                                <option value="monthly" {{#if (eq settings.backupFrequency 'monthly')}}selected{{/if}}>每月</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">备份保留天数</label>
+                                    <input type="number" class="form-control" name="backupRetentionDays" value="{{settings.backupRetentionDays}}" min="1" max="365">
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="button" class="btn btn-primary" onclick="createBackup()">
+                                        <i class="fas fa-save me-2"></i>立即备份
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="showBackupHistory()">
+                                        <i class="fas fa-history me-2"></i>备份历史
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function saveAllSettings() {
+    alert('保存设置功能正在开发中...');
+}
+
+function resetSettings() {
+    if (confirm('确定要重置所有设置吗？')) {
+        alert('重置设置功能正在开发中...');
+    }
+}
+
+function createBackup() {
+    alert('创建备份功能正在开发中...');
+}
+
+function showBackupHistory() {
+    alert('备份历史功能正在开发中...');
+}
+</script>
+
+<style>
+.settings-container {
+    background-color: #f8f9fa;
+    min-height: calc(100vh - 60px);
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+}
+
+.list-group-item {
+    border: none;
+    padding: 0.75rem 1.25rem;
+}
+
+.list-group-item.active {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.form-label {
+    font-weight: 600;
+    color: #495057;
+}
+
+.form-control, .form-select {
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.form-check-input:checked {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.btn-primary {
+    background-color: #667eea;
+    border-color: #667eea;
+}
+
+.btn-primary:hover {
+    background-color: #5a67d8;
+    border-color: #5a67d8;
+}
+</style> 

@@ -1,0 +1,323 @@
+{{#if error}}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{error}}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{{/if}}
+
+<div class="users-container p-4">
+    <!-- 页面标题 -->
+    <div class="page-header mb-5">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="page-title">
+                    <i class="fas fa-users me-2"></i>用户管理
+                </h1>
+                <p class="text-muted">管理系统用户账户和权限</p>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary" onclick="showAddUserModal()">
+                        <i class="fas fa-plus me-2"></i>添加用户
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="refreshUsers()">
+                        <i class="fas fa-sync-alt me-2"></i>刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户统计 -->
+    <div class="row mb-5">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-primary">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.totalUsers}}</div>
+                            <div class="stats-label">总用户数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-success">
+                            <i class="fas fa-user-check"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.activeUsers}}</div>
+                            <div class="stats-label">活跃用户</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-warning">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.adminUsers}}</div>
+                            <div class="stats-label">管理员</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-info">
+                            <i class="fas fa-user-plus"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.newUsers}}</div>
+                            <div class="stats-label">新用户(本月)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户列表 -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>用户列表
+                    </h5>
+                </div>
+                <div class="col-auto">
+                    <div class="input-group">
+                        <input type="text" class="form-control" placeholder="搜索用户..." id="searchInput">
+                        <button class="btn btn-outline-secondary" type="button">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>用户</th>
+                            <th>邮箱</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>创建时间</th>
+                            <th>最后登录</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#if users}}
+                            {{#each users}}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="user-avatar me-3">
+                                            <div class="avatar-circle">
+                                                {{substring displayName 0 1}}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">{{displayName}}</div>
+                                            <div class="text-muted small">@{{username}}</div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>{{email}}</td>
+                                <td>
+                                    <span class="badge {{#if (eq role 'admin')}}bg-danger{{else if (eq role 'moderator')}}bg-warning{{else}}bg-secondary{{/if}}">
+                                        {{#if (eq role 'admin')}}管理员{{else if (eq role 'moderator')}}审核员{{else}}用户{{/if}}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge {{#if (eq status 'active')}}bg-success{{else if (eq status 'inactive')}}bg-warning{{else}}bg-danger{{/if}}">
+                                        {{#if (eq status 'active')}}活跃{{else if (eq status 'inactive')}}非活跃{{else}}已禁用{{/if}}
+                                    </span>
+                                </td>
+                                <td>{{formatDate createdAt}}</td>
+                                <td>{{formatTime lastLoginAt}}</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="editUser('{{id}}')">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="deleteUser('{{id}}')">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {{/each}}
+                        {{else}}
+                            <tr>
+                                <td colspan="7" class="text-center py-5">
+                                    <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">暂无用户数据</p>
+                                </td>
+                            </tr>
+                        {{/if}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function refreshUsers() {
+    location.reload();
+}
+
+function showAddUserModal() {
+    alert('添加用户功能正在开发中...');
+}
+
+function editUser(userId) {
+    alert('编辑用户功能正在开发中...');
+}
+
+function deleteUser(userId) {
+    if (confirm('确定要删除这个用户吗？')) {
+        alert('删除用户功能正在开发中...');
+    }
+}
+
+// 搜索功能
+document.getElementById('searchInput').addEventListener('input', function(e) {
+    const searchTerm = e.target.value.toLowerCase();
+    const rows = document.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchTerm) ? '' : 'none';
+    });
+});
+</script>
+
+<style>
+.users-container {
+    background-color: #f8f9fa;
+    min-height: calc(100vh - 60px);
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+}
+
+.stats-card-body {
+    padding: 0;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #333;
+    line-height: 1;
+}
+
+.stats-label {
+    font-size: 0.875rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.user-avatar .avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    padding: 1rem 0.75rem;
+}
+
+.table td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,0.025);
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+</style> 
