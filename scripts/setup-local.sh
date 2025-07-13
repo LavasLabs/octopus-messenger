@@ -18,7 +18,7 @@ check_requirements() {
     fi
     
     # 检查Docker Compose
-    if ! command -v docker-compose &> /dev/null; then
+    if ! docker compose version &> /dev/null; then
         echo "❌ Docker Compose 未安装，请先安装 Docker Compose"
         exit 1
     fi
@@ -104,7 +104,7 @@ start_databases() {
     echo "🗄️  启动数据库服务..."
     
     # 只启动数据库相关服务
-    docker-compose up -d postgres redis mongodb
+    docker compose up -d postgres redis mongodb
     
     echo "⏳ 等待数据库启动..."
     sleep 10
@@ -118,17 +118,17 @@ init_database() {
     
     # 等待PostgreSQL启动
     echo "⏳ 等待 PostgreSQL 准备就绪..."
-    until docker-compose exec postgres pg_isready -U postgres; do
+    until docker compose exec postgres pg_isready -U postgres; do
         sleep 2
     done
     
     # 运行数据库迁移
     echo "🔄 运行数据库迁移..."
-    docker-compose exec postgres psql -U postgres -d octopus_messenger -f /docker-entrypoint-initdb.d/001_initial_schema.sql
+    docker compose exec postgres psql -U postgres -d octopus_messenger -f /docker-entrypoint-initdb.d/001_initial_schema.sql
     
     # 插入初始数据
     echo "🌱 插入初始数据..."
-    docker-compose exec postgres psql -U postgres -d octopus_messenger -f /docker-entrypoint-initdb.d/../seeds/initial_data.sql
+    docker compose exec postgres psql -U postgres -d octopus_messenger -f /docker-entrypoint-initdb.d/../seeds/initial_data.sql
     
     echo "✅ 数据库初始化完成"
 }
