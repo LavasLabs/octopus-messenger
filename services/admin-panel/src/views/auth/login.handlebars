@@ -5,63 +5,181 @@
 </div>
 {{/if}}
 
-<form method="POST" action="/login">
-    <div class="form-floating mb-3">
-        <input type="email" class="form-control" id="email" name="email" placeholder="邮箱地址" 
-               value="{{email}}" required>
-        <label for="email"><i class="fas fa-envelope me-2"></i>邮箱地址</label>
+<div class="auth-form-container">
+    <div class="login-tabs mb-4">
+        <div class="btn-group w-100" role="group">
+            <input type="radio" class="btn-check" name="loginType" id="usernameTab" value="username" {{#unless loginType}}checked{{/unless}} {{#if (eq loginType 'username')}}checked{{/if}}>
+            <label class="btn btn-outline-primary" for="usernameTab">
+                <i class="fas fa-user me-2"></i>用户名登录
+            </label>
+            
+            <input type="radio" class="btn-check" name="loginType" id="emailTab" value="email" {{#if (eq loginType 'email')}}checked{{/if}}>
+            <label class="btn btn-outline-primary" for="emailTab">
+                <i class="fas fa-envelope me-2"></i>邮箱登录
+            </label>
+        </div>
     </div>
-    
-    <div class="form-floating mb-3">
-        <input type="password" class="form-control" id="password" name="password" placeholder="密码" required>
-        <label for="password"><i class="fas fa-lock me-2"></i>密码</label>
-    </div>
-    
-    <div class="form-check mb-3">
-        <input class="form-check-input" type="checkbox" id="remember" name="remember">
-        <label class="form-check-label" for="remember">
-            记住我
-        </label>
-    </div>
-    
-    <div class="d-grid">
-        <button type="submit" class="btn btn-primary btn-auth">
-            <i class="fas fa-sign-in-alt me-2"></i>登录
-        </button>
-    </div>
-</form>
 
-<div class="text-center mt-3">
-    <a href="/forgot-password" class="text-decoration-none">
-        <i class="fas fa-question-circle me-1"></i>忘记密码？
-    </a>
+    <form method="POST" action="/login" id="loginForm">
+        <input type="hidden" name="loginType" id="loginTypeInput" value="{{loginType}}">
+        
+        <!-- 用户名登录表单 -->
+        <div id="usernameForm" class="login-form">
+            <div class="form-floating mb-3">
+                <input type="text" class="form-control" id="username" name="username" placeholder="用户名" 
+                       value="{{username}}" autocomplete="username">
+                <label for="username"><i class="fas fa-user me-2"></i>用户名</label>
+            </div>
+            
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="usernamePassword" name="password" placeholder="密码" 
+                       autocomplete="current-password">
+                <label for="usernamePassword"><i class="fas fa-lock me-2"></i>密码</label>
+            </div>
+        </div>
+        
+        <!-- 邮箱登录表单 -->
+        <div id="emailForm" class="login-form" style="display: none;">
+            <div class="form-floating mb-3">
+                <input type="email" class="form-control" id="email" name="email" placeholder="邮箱地址" 
+                       value="{{email}}" autocomplete="email">
+                <label for="email"><i class="fas fa-envelope me-2"></i>邮箱地址</label>
+            </div>
+            
+            <div class="form-floating mb-3">
+                <input type="password" class="form-control" id="emailPassword" name="password" placeholder="密码" 
+                       autocomplete="current-password">
+                <label for="emailPassword"><i class="fas fa-lock me-2"></i>密码</label>
+            </div>
+        </div>
+        
+        <div class="form-check mb-4">
+            <input class="form-check-input" type="checkbox" id="remember" name="remember">
+            <label class="form-check-label" for="remember">
+                <i class="fas fa-clock me-1"></i>记住我
+            </label>
+        </div>
+        
+        <div class="d-grid mb-3">
+            <button type="submit" class="btn btn-primary btn-auth" id="loginButton">
+                <i class="fas fa-sign-in-alt me-2"></i>登录
+                <span class="spinner-border spinner-border-sm ms-2" role="status" style="display: none;"></span>
+            </button>
+        </div>
+    </form>
+
+    <div class="text-center">
+        <a href="/forgot-password" class="text-decoration-none text-muted">
+            <i class="fas fa-question-circle me-1"></i>忘记密码？
+        </a>
+    </div>
 </div>
 
 <script>
-// 表单验证
-document.querySelector('form').addEventListener('submit', function(e) {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
+// 登录类型切换
+document.addEventListener('DOMContentLoaded', function() {
+    const usernameTab = document.getElementById('usernameTab');
+    const emailTab = document.getElementById('emailTab');
+    const usernameForm = document.getElementById('usernameForm');
+    const emailForm = document.getElementById('emailForm');
+    const loginTypeInput = document.getElementById('loginTypeInput');
     
-    if (!email || !password) {
+    // 初始化显示
+    const currentLoginType = loginTypeInput.value || 'username';
+    if (currentLoginType === 'email') {
+        emailTab.checked = true;
+        usernameForm.style.display = 'none';
+        emailForm.style.display = 'block';
+    } else {
+        usernameTab.checked = true;
+        usernameForm.style.display = 'block';
+        emailForm.style.display = 'none';
+    }
+    
+    // 切换事件
+    usernameTab.addEventListener('change', function() {
+        if (this.checked) {
+            usernameForm.style.display = 'block';
+            emailForm.style.display = 'none';
+            loginTypeInput.value = 'username';
+            // 清空邮箱表单
+            document.getElementById('email').value = '';
+            document.getElementById('emailPassword').value = '';
+        }
+    });
+    
+    emailTab.addEventListener('change', function() {
+        if (this.checked) {
+            emailForm.style.display = 'block';
+            usernameForm.style.display = 'none';
+            loginTypeInput.value = 'email';
+            // 清空用户名表单
+            document.getElementById('username').value = '';
+            document.getElementById('usernamePassword').value = '';
+        }
+    });
+});
+
+// 表单验证和提交
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    const loginType = document.getElementById('loginTypeInput').value;
+    const loginButton = document.getElementById('loginButton');
+    const spinner = loginButton.querySelector('.spinner-border');
+    
+    let isValid = true;
+    let errorMessage = '';
+    
+    if (loginType === 'username') {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('usernamePassword').value;
+        
+        if (!username) {
+            errorMessage = '请输入用户名';
+            isValid = false;
+        } else if (!password) {
+            errorMessage = '请输入密码';
+            isValid = false;
+        }
+    } else {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('emailPassword').value;
+        
+        if (!email) {
+            errorMessage = '请输入邮箱地址';
+            isValid = false;
+        } else if (!password) {
+            errorMessage = '请输入密码';
+            isValid = false;
+        } else {
+            // 邮箱格式验证
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                errorMessage = '请输入有效的邮箱地址';
+                isValid = false;
+            }
+        }
+    }
+    
+    if (!isValid) {
         e.preventDefault();
-        alert('请填写所有必填字段');
+        alert(errorMessage);
         return;
     }
     
-    // 简单的邮箱格式验证
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-        e.preventDefault();
-        alert('请输入有效的邮箱地址');
-        return;
-    }
+    // 显示加载状态
+    loginButton.disabled = true;
+    spinner.style.display = 'inline-block';
+    
+    // 提交表单
+    setTimeout(() => {
+        this.submit();
+    }, 100);
 });
 
 // 回车键提交
 document.addEventListener('keypress', function(e) {
     if (e.key === 'Enter') {
-        document.querySelector('form').submit();
+        document.getElementById('loginForm').dispatchEvent(new Event('submit'));
     }
 });
 </script> 

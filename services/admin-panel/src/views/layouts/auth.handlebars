@@ -11,74 +11,284 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     
     <style>
+        * {
+            box-sizing: border-box;
+        }
+        
         body {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 500px;
+            width: 100%;
         }
         
         .auth-card {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            border-radius: 15px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 2.5rem;
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .auth-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
         }
         
         .auth-header {
             text-align: center;
-            margin-bottom: 2rem;
+            margin-bottom: 2.5rem;
         }
         
         .auth-header h1 {
             color: #333;
             font-weight: 700;
             margin-bottom: 0.5rem;
+            font-size: 2rem;
         }
         
         .auth-header p {
             color: #666;
             margin: 0;
+            font-size: 1rem;
         }
         
-        .form-floating label {
+        .logo {
+            font-size: 3.5rem;
+            color: #667eea;
+            margin-bottom: 1rem;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .auth-form-container {
+            margin-top: 1rem;
+        }
+        
+        .login-tabs {
+            margin-bottom: 1.5rem;
+        }
+        
+        .login-tabs .btn-group {
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        .login-tabs .btn {
+            padding: 12px 20px;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s ease;
+        }
+        
+        .login-tabs .btn-outline-primary {
+            color: #667eea;
+            border-color: #667eea;
+        }
+        
+        .login-tabs .btn-outline-primary:hover {
+            background-color: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+        
+        .login-tabs .btn-check:checked + .btn-outline-primary {
+            background-color: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+        
+        .login-form {
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .form-floating {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-floating > .form-control {
+            border-radius: 12px;
+            border: 2px solid #e9ecef;
+            padding: 1rem 0.75rem;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        .form-floating > .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        .form-floating > label {
             color: #666;
+            font-weight: 500;
+            padding: 1rem 0.75rem;
+        }
+        
+        .form-check {
+            margin-bottom: 1.5rem;
+            padding-left: 1.5rem;
+        }
+        
+        .form-check-input {
+            width: 1.2rem;
+            height: 1.2rem;
+            margin-top: 0.1rem;
+            border-radius: 6px;
+            border: 2px solid #dee2e6;
+        }
+        
+        .form-check-input:checked {
+            background-color: #667eea;
+            border-color: #667eea;
+        }
+        
+        .form-check-label {
+            color: #666;
+            font-weight: 500;
+            margin-left: 0.5rem;
         }
         
         .btn-auth {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             border: none;
-            padding: 12px 30px;
+            padding: 15px 30px;
             font-weight: 600;
             letter-spacing: 0.5px;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
         }
         
         .btn-auth:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
         }
         
-        .logo {
-            font-size: 3rem;
-            color: #667eea;
-            margin-bottom: 1rem;
+        .btn-auth:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-auth .spinner-border {
+            width: 1rem;
+            height: 1rem;
+        }
+        
+        .alert {
+            border-radius: 12px;
+            border: none;
+            margin-bottom: 1.5rem;
+            padding: 1rem 1.25rem;
+            font-weight: 500;
+        }
+        
+        .alert-danger {
+            background-color: rgba(220, 53, 69, 0.1);
+            color: #dc3545;
         }
         
         .footer-text {
             text-align: center;
-            color: rgba(255, 255, 255, 0.8);
-            margin-top: 2rem;
+            color: rgba(255, 255, 255, 0.9);
             font-size: 0.9rem;
+            font-weight: 500;
+        }
+        
+        .footer-text p {
+            margin: 0;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .text-muted {
+            color: #6c757d !important;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+        
+        .text-muted:hover {
+            color: #495057 !important;
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 576px) {
+            .auth-card {
+                padding: 2rem;
+                margin: 1rem;
+            }
+            
+            .auth-header h1 {
+                font-size: 1.75rem;
+            }
+            
+            .logo {
+                font-size: 3rem;
+            }
+            
+            .login-tabs .btn {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        /* 暗色模式适配 */
+        @media (prefers-color-scheme: dark) {
+            .auth-card {
+                background: rgba(33, 37, 41, 0.95);
+                color: #fff;
+            }
+            
+            .auth-header h1 {
+                color: #fff;
+            }
+            
+            .auth-header p {
+                color: #adb5bd;
+            }
+            
+            .form-floating > label {
+                color: #adb5bd;
+            }
+            
+            .form-check-label {
+                color: #adb5bd;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="row justify-content-center">
-            <div class="col-md-6 col-lg-4">
-                <div class="auth-card p-4">
+            <div class="col-12">
+                <div class="auth-card">
                     <div class="auth-header">
                         <div class="logo">
                             <i class="fas fa-robot"></i>

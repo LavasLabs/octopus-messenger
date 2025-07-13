@@ -98,8 +98,15 @@ app.engine('handlebars', engine({
     helpers: {
         json: (context) => JSON.stringify(context),
         eq: (a, b) => a === b,
+        ne: (a, b) => a !== b,
         formatDate: (date) => new Date(date).toLocaleDateString('zh-CN'),
-        formatTime: (date) => new Date(date).toLocaleString('zh-CN')
+        formatTime: (date) => new Date(date).toLocaleString('zh-CN'),
+        unless: (condition, options) => {
+            if (!condition) {
+                return options.fn(this);
+            }
+            return options.inverse(this);
+        }
     }
 }));
 
@@ -110,10 +117,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use('/static', express.static(path.join(__dirname, 'public')));
 
 // Session配置
-app.use(session({
-    store: new RedisStore({
-        client: cacheManager.client
-    }),
+let sessionConfig = {
     secret: process.env.SESSION_SECRET || 'admin-panel-secret',
     resave: false,
     saveUninitialized: false,
@@ -122,7 +126,18 @@ app.use(session({
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24小时
     }
-}));
+};
+
+// 尝试使用Redis存储，如果失败则使用内存存储
+try {
+    sessionConfig.store = new RedisStore({
+        client: cacheManager.client
+    });
+} catch (error) {
+    logger.warn('Redis session store failed, using memory store:', error.message);
+}
+
+app.use(session(sessionConfig));
 
 // 健康检查端点
 app.get('/health', async (req, res) => {
@@ -176,10 +191,13 @@ app.get('/login', (req, res) => {
 // 登录处理
 app.post('/login', async (req, res) => {
     try {
-        const { username, password } = req.body;
+        const { loginType, username, email, password } = req.body;
+        
+        // 根据登录类型选择字段
+        const loginData = loginType === 'email' ? { email, password } : { username, password };
         
         // 通过API客户端验证用户
-        const loginResult = await apiClient.login({ username, password });
+        const loginResult = await apiClient.login(loginData);
         
         if (loginResult.success) {
             req.session.user = loginResult.user;
@@ -188,13 +206,20 @@ app.post('/login', async (req, res) => {
             // 设置API客户端的认证token
             apiClient.setAuthToken(loginResult.token);
             
-            logger.info('User logged in:', { username, userId: loginResult.user.id });
+            logger.info('User logged in:', { 
+                loginType, 
+                identifier: loginType === 'email' ? email : username,
+                userId: loginResult.user.id 
+            });
             res.redirect('/dashboard');
         } else {
             res.render('auth/login', { 
                 title: '登录 - Octopus Messenger',
                 layout: 'auth',
-                error: '用户名或密码错误'
+                error: '用户名/邮箱或密码错误',
+                loginType,
+                username,
+                email
             });
         }
     } catch (error) {
@@ -202,7 +227,10 @@ app.post('/login', async (req, res) => {
         res.render('auth/login', { 
             title: '登录 - Octopus Messenger',
             layout: 'auth',
-            error: '登录失败，请稍后重试'
+            error: '登录失败，请稍后重试',
+            loginType: req.body.loginType,
+            username: req.body.username,
+            email: req.body.email
         });
     }
 });
@@ -423,9 +451,13 @@ async function initializeService() {
     try {
         logger.info('Initializing Admin Panel service...');
         
-        // 初始化缓存管理器
-        await cacheManager.connect();
-        logger.info('Cache manager connected');
+        // 尝试初始化缓存管理器
+        try {
+            await cacheManager.connect();
+            logger.info('Cache manager connected');
+        } catch (error) {
+            logger.warn('Cache manager connection failed, continuing without cache:', error.message);
+        }
         
         // 测试数据库连接
         const dbHealthy = await dbManager.healthCheck();
@@ -435,11 +467,15 @@ async function initializeService() {
         logger.info('Database connection verified');
         
         // 测试Gateway连接
-        const gatewayHealth = await apiClient.healthCheck();
-        if (gatewayHealth.status !== 'healthy') {
-            logger.warn('Gateway connection failed, but continuing...');
-        } else {
-            logger.info('Gateway connection verified');
+        try {
+            const gatewayHealth = await apiClient.healthCheck();
+            if (gatewayHealth.status !== 'healthy') {
+                logger.warn('Gateway connection failed, but continuing...');
+            } else {
+                logger.info('Gateway connection verified');
+            }
+        } catch (error) {
+            logger.warn('Gateway connection test failed:', error.message);
         }
         
         logger.info('Admin Panel service initialized successfully');

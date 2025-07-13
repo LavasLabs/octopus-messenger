@@ -4,7 +4,7 @@ const logger = require('../utils/logger');
 class SystemManager {
     constructor() {
         this.pool = new Pool({
-            host: process.env.DB_HOST || 'localhost',
+            host: process.env.DB_HOST || 'postgres',
             port: process.env.DB_PORT || 5432,
             database: process.env.DB_NAME || 'octopus_messenger',
             user: process.env.DB_USER || 'postgres',

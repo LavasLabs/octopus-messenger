@@ -4,9 +4,7 @@ const logger = require('./logger');
 class CacheManager {
     constructor() {
         this.client = redis.createClient({
-            host: process.env.REDIS_HOST || 'localhost',
-            port: process.env.REDIS_PORT || 6379,
-            password: process.env.REDIS_PASSWORD || 'redis123',
+            url: `redis://:${process.env.REDIS_PASSWORD || 'redis123'}@${process.env.REDIS_HOST || 'redis'}:${process.env.REDIS_PORT || 6379}`,
             retry_strategy: (options) => {
                 if (options.error && options.error.code === 'ECONNREFUSED') {
                     logger.error('Redis server refused connection');
