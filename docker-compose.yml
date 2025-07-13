@@ -8,17 +8,20 @@ services:
     environment:
       POSTGRES_DB: octopus_messenger
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${PG_PASSWORD:-password}
+      POSTGRES_PASSWORD: Abc123123!
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./database/migrations:/docker-entrypoint-initdb.d
+      - ./database/init:/docker-entrypoint-initdb.d
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD-SHELL", "pg_isready -U postgres -d octopus_messenger"]
+      interval: 10s
+      timeout: 5s
       retries: 5
+      start_period: 30s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -30,12 +33,14 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass "redis123"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "redis-cli", "-a", "redis123", "ping"]
+      interval: 10s
+      timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -45,15 +50,19 @@ services:
     container_name: octopus-mongodb
     environment:
       MONGO_INITDB_DATABASE: octopus_messenger
+      MONGO_INITDB_ROOT_USERNAME: mongo
+      MONGO_INITDB_ROOT_PASSWORD: mongo123
     ports:
       - "27017:27017"
     volumes:
       - mongodb_data:/data/db
     healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
       retries: 5
+      start_period: 10s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -66,26 +75,34 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=production
-      - PG_HOST=postgres
-      - PG_PORT=5432
-      - PG_DATABASE=octopus_messenger
-      - PG_USERNAME=postgres
-      - PG_PASSWORD=${PG_PASSWORD:-password}
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=octopus_messenger
+      - DB_USER=postgres
+      - DB_PASSWORD=Abc123123!
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - MONGODB_URI=mongodb://mongodb:27017/octopus_messenger
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - REDIS_PASSWORD=redis123
+      - MONGODB_URL=mongodb://mongo:mongo123@mongodb:27017/octopus_messenger
+      - JWT_SECRET=your-super-secret-jwt-key-please-change-in-production
+      - SERVICE_TOKEN=service-communication-token
+      - CORS_ORIGINS=http://localhost:3000,http://localhost:3005
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -98,26 +115,33 @@ services:
     ports:
       - "3001:3001"
     environment:
-      - NODE_ENV=production
-      - PG_HOST=postgres
-      - PG_PORT=5432
-      - PG_DATABASE=octopus_messenger
-      - PG_USERNAME=postgres
-      - PG_PASSWORD=${PG_PASSWORD:-password}
+      - NODE_ENV=development
+      - PORT=3001
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=octopus_messenger
+      - DB_USER=postgres
+      - DB_PASSWORD=Abc123123!
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - MONGODB_URI=mongodb://mongodb:27017/octopus_messenger
+      - REDIS_PASSWORD=redis123
+      - MONGODB_URL=mongodb://mongo:mongo123@mongodb:27017/octopus_messenger
       - MESSAGE_PROCESSOR_PORT=3001
+      - SERVICE_TOKEN=service-communication-token
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      mongodb:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -130,19 +154,22 @@ services:
     ports:
       - "3002:3002"
     environment:
-      - NODE_ENV=production
-      - PG_HOST=postgres
-      - PG_PORT=5432
-      - PG_DATABASE=octopus_messenger
-      - PG_USERNAME=postgres
-      - PG_PASSWORD=${PG_PASSWORD:-password}
+      - NODE_ENV=development
+      - PORT=3002
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=octopus_messenger
+      - DB_USER=postgres
+      - DB_PASSWORD=Abc123123!
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis123
       - AI_SERVICE_PORT=3002
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
-      - AI_OPENAI_ENABLED=${AI_OPENAI_ENABLED:-false}
-      - AI_CLAUDE_ENABLED=${AI_CLAUDE_ENABLED:-false}
+      - SERVICE_TOKEN=service-communication-token
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-fake-key-for-testing}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY:-fake-key-for-testing}
+      - OPENAI_MODEL=gpt-4
+      - CLAUDE_MODEL=claude-3-sonnet-20240229
     depends_on:
       postgres:
         condition: service_healthy
@@ -153,6 +180,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -165,21 +194,22 @@ services:
     ports:
       - "3003:3003"
     environment:
-      - NODE_ENV=production
-      - PG_HOST=postgres
-      - PG_PORT=5432
-      - PG_DATABASE=octopus_messenger
-      - PG_USERNAME=postgres
-      - PG_PASSWORD=${PG_PASSWORD:-password}
+      - NODE_ENV=development
+      - PORT=3003
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=octopus_messenger
+      - DB_USER=postgres
+      - DB_PASSWORD=Abc123123!
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis123
       - TASK_SERVICE_PORT=3003
-      - LARK_ENABLED=${LARK_ENABLED:-false}
-      - LARK_APP_ID=${LARK_APP_ID}
-      - LARK_APP_SECRET=${LARK_APP_SECRET}
-      - SALESFORCE_ENABLED=${SALESFORCE_ENABLED:-false}
-      - NOTION_ENABLED=${NOTION_ENABLED:-false}
-      - JIRA_ENABLED=${JIRA_ENABLED:-false}
+      - SERVICE_TOKEN=service-communication-token
+      - LARK_ENABLED=false
+      - SALESFORCE_ENABLED=false
+      - NOTION_ENABLED=false
+      - JIRA_ENABLED=false
     depends_on:
       postgres:
         condition: service_healthy
@@ -190,6 +220,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -202,23 +234,22 @@ services:
     ports:
       - "3004:3004"
     environment:
-      - NODE_ENV=production
-      - PG_HOST=postgres
-      - PG_PORT=5432
-      - PG_DATABASE=octopus_messenger
-      - PG_USERNAME=postgres
-      - PG_PASSWORD=${PG_PASSWORD:-password}
+      - NODE_ENV=development
+      - PORT=3004
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=octopus_messenger
+      - DB_USER=postgres
+      - DB_PASSWORD=Abc123123!
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis123
       - BOT_MANAGER_PORT=3004
-      - TELEGRAM_ENABLED=${TELEGRAM_ENABLED:-false}
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - DISCORD_ENABLED=${DISCORD_ENABLED:-false}
-      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
-      - SLACK_ENABLED=${SLACK_ENABLED:-false}
-      - SLACK_BOT_TOKEN=${SLACK_BOT_TOKEN}
-      - WHATSAPP_ENABLED=${WHATSAPP_ENABLED:-false}
-      - WHATSAPP_ACCESS_TOKEN=${WHATSAPP_ACCESS_TOKEN}
+      - SERVICE_TOKEN=service-communication-token
+      - TELEGRAM_ENABLED=false
+      - DISCORD_ENABLED=false
+      - SLACK_ENABLED=false
+      - WHATSAPP_ENABLED=false
     depends_on:
       postgres:
         condition: service_healthy
@@ -229,6 +260,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -241,16 +274,19 @@ services:
     ports:
       - "3005:3005"
     environment:
-      - NODE_ENV=production
-      - PG_HOST=postgres
-      - PG_PORT=5432
-      - PG_DATABASE=octopus_messenger
-      - PG_USERNAME=postgres
-      - PG_PASSWORD=${PG_PASSWORD:-password}
+      - NODE_ENV=development
+      - PORT=3005
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=octopus_messenger
+      - DB_USER=postgres
+      - DB_PASSWORD=Abc123123!
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=redis123
       - ADMIN_PANEL_PORT=3005
-      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key}
+      - SERVICE_TOKEN=service-communication-token
+      - JWT_SECRET=your-super-secret-jwt-key-please-change-in-production
     depends_on:
       postgres:
         condition: service_healthy
@@ -263,6 +299,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 40s
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -274,11 +312,60 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/ssl:/etc/nginx/ssl
     depends_on:
       - gateway
       - admin-panel
+    restart: unless-stopped
+    networks:
+      - octopus-network
+
+  # 数据库管理工具
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: octopus-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@octopus.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+    networks:
+      - octopus-network
+
+  # Redis管理工具
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: octopus-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379
+      REDIS_PASSWORD: redis123
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - octopus-network
+
+  # MongoDB管理工具
+  mongo-express:
+    image: mongo-express:latest
+    container_name: octopus-mongo-express
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: mongo
+      ME_CONFIG_MONGODB_ADMINPASSWORD: mongo123
+      ME_CONFIG_MONGODB_URL: mongodb://mongo:mongo123@mongodb:27017/
+      ME_CONFIG_BASICAUTH_USERNAME: admin
+      ME_CONFIG_BASICAUTH_PASSWORD: admin123
+    ports:
+      - "8082:8081"
+    depends_on:
+      - mongodb
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -298,6 +385,7 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -308,12 +396,13 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=admin123
     volumes:
       - grafana_data:/var/lib/grafana
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
     depends_on:
       - prometheus
+    restart: unless-stopped
     networks:
       - octopus-network
 
@@ -326,4 +415,8 @@ volumes:
 
 networks:
   octopus-network:
-    driver: bridge 
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.20.0.0/16 
