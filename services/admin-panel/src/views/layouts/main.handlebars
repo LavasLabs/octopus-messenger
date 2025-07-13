@@ -9,93 +9,426 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Socket.IO -->
-    <script src="/socket.io/socket.io.js"></script>
     
     <style>
+        :root {
+            --primary-color: #667eea;
+            --secondary-color: #764ba2;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --info-color: #17a2b8;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --sidebar-width: 250px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* 侧边栏 */
         .sidebar {
             position: fixed;
             top: 0;
-            bottom: 0;
             left: 0;
-            z-index: 100;
-            padding: 48px 0 0;
-            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
-        }
-        
-        .sidebar-sticky {
-            position: relative;
-            top: 0;
-            height: calc(100vh - 48px);
-            padding-top: .5rem;
-            overflow-x: hidden;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            color: white;
+            z-index: 1000;
             overflow-y: auto;
+            transition: transform 0.3s ease;
         }
-        
-        .navbar-brand {
-            padding-top: .75rem;
-            padding-bottom: .75rem;
+
+        .sidebar-header {
+            padding: 1.5rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            text-align: center;
         }
-        
-        .navbar .navbar-toggler {
-            top: .25rem;
-            right: 1rem;
+
+        .sidebar-header h4 {
+            margin: 0;
+            font-weight: 700;
+            font-size: 1.25rem;
         }
-        
+
+        .sidebar-header p {
+            margin: 0.5rem 0 0 0;
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+
+        .sidebar-nav {
+            padding: 1rem 0;
+        }
+
+        .nav-item {
+            margin-bottom: 0.25rem;
+        }
+
+        .nav-link {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1.5rem;
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            transition: all 0.3s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: white;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left-color: white;
+        }
+
+        .nav-link i {
+            width: 20px;
+            margin-right: 0.75rem;
+            text-align: center;
+        }
+
+        /* 主内容区域 */
         .main-content {
-            margin-left: 240px;
-            padding: 20px;
+            margin-left: var(--sidebar-width);
+            min-height: 100vh;
+            background-color: #f8f9fa;
         }
-        
-        @media (max-width: 767.98px) {
+
+        /* 顶部导航 */
+        .top-navbar {
+            background: white;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+        }
+
+        .navbar-brand {
+            font-weight: 700;
+            color: var(--primary-color);
+            text-decoration: none;
+            display: none;
+        }
+
+        .navbar-nav {
+            display: flex;
+            align-items: center;
+            margin-left: auto;
+        }
+
+        .navbar-nav .nav-item {
+            margin-left: 1rem;
+        }
+
+        .user-menu {
+            position: relative;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        /* 内容区域 */
+        .content-wrapper {
+            padding: 2rem;
+        }
+
+        .page-header {
+            margin-bottom: 2rem;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark-color);
+            margin-bottom: 0.5rem;
+        }
+
+        /* 统计卡片 */
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stats-card-body {
+            padding: 1.5rem;
+        }
+
+        .stats-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .stats-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark-color);
+        }
+
+        .stats-label {
+            color: #6c757d;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        /* 卡片 */
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-header {
+            background: white;
+            border-bottom: 1px solid #e9ecef;
+            border-radius: 15px 15px 0 0 !important;
+            padding: 1.25rem 1.5rem;
+        }
+
+        .card-title {
+            font-weight: 600;
+            color: var(--dark-color);
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        /* 活动时间线 */
+        .activity-timeline {
+            position: relative;
+        }
+
+        .activity-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 1.5rem;
+            position: relative;
+        }
+
+        .activity-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .activity-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 0.875rem;
+            flex-shrink: 0;
+        }
+
+        .activity-content {
+            margin-left: 1rem;
+            flex: 1;
+        }
+
+        .activity-text {
+            font-size: 0.875rem;
+            color: var(--dark-color);
+            margin-bottom: 0.25rem;
+        }
+
+        .activity-time {
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+
+        /* 系统状态 */
+        .system-status .status-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .system-status .status-item:last-child {
+            border-bottom: none;
+        }
+
+        .system-info .info-item {
+            margin-bottom: 0.5rem;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
             .sidebar {
-                top: 5rem;
+                transform: translateX(-100%);
             }
+
+            .sidebar.show {
+                transform: translateX(0);
+            }
+
             .main-content {
                 margin-left: 0;
             }
+
+            .content-wrapper {
+                padding: 1rem;
+            }
+
+            .navbar-brand {
+                display: block;
+            }
         }
-        
-        .nav-link.active {
-            color: #007bff;
-            background-color: rgba(0, 123, 255, .1);
+
+        /* 按钮样式 */
+        .btn {
+            border-radius: 8px;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            transition: all 0.3s ease;
         }
-        
-        .status-badge {
-            font-size: 0.75rem;
-            padding: 0.25rem 0.5rem;
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+            border: none;
         }
-        
-        .stats-card {
-            transition: transform 0.2s;
-        }
-        
-        .stats-card:hover {
+
+        .btn-primary:hover {
             transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        /* 徽章样式 */
+        .badge {
+            border-radius: 6px;
+            font-weight: 500;
+            padding: 0.375rem 0.75rem;
+        }
+
+        /* 警告样式 */
+        .alert {
+            border-radius: 12px;
+            border: none;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
         }
     </style>
 </head>
 <body>
-    <!-- 顶部导航栏 -->
-    <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0 shadow">
-        <a class="navbar-brand col-md-3 col-lg-2 me-0 px-3" href="/">
-            <i class="fas fa-robot me-2"></i>Octopus Messenger
-        </a>
+    <!-- 侧边栏 -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="text-center mb-3">
+                <i class="fas fa-robot fs-1"></i>
+            </div>
+            <h4>Octopus Messenger</h4>
+            <p>管理面板</p>
+        </div>
         
-        <button class="navbar-toggler position-absolute d-md-none collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#sidebarMenu">
-            <span class="navbar-toggler-icon"></span>
-        </button>
-        
-        <div class="navbar-nav">
-            <div class="nav-item text-nowrap">
-                {{#if user}}
-                    <div class="dropdown">
-                        <a class="nav-link px-3 dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                            <i class="fas fa-user me-1"></i>{{user.displayName}}
-                        </a>
+        <nav class="sidebar-nav">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {{#if (eq currentPath '/dashboard')}}active{{/if}}" href="/dashboard">
+                        <i class="fas fa-tachometer-alt"></i>
+                        仪表板
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{#if (eq currentPath '/users')}}active{{/if}}" href="/users">
+                        <i class="fas fa-users"></i>
+                        用户管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{#if (eq currentPath '/bots')}}active{{/if}}" href="/bots">
+                        <i class="fas fa-robot"></i>
+                        Bot管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{#if (eq currentPath '/messages')}}active{{/if}}" href="/messages">
+                        <i class="fas fa-comments"></i>
+                        消息管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{#if (eq currentPath '/tasks')}}active{{/if}}" href="/tasks">
+                        <i class="fas fa-tasks"></i>
+                        任务管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{#if (eq currentPath '/merchants')}}active{{/if}}" href="/merchants">
+                        <i class="fas fa-store"></i>
+                        商户管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {{#if (eq currentPath '/settings')}}active{{/if}}" href="/settings">
+                        <i class="fas fa-cog"></i>
+                        系统设置
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+
+    <!-- 主内容区域 -->
+    <div class="main-content">
+        <!-- 顶部导航 -->
+        <nav class="top-navbar">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-link d-md-none" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <a class="navbar-brand d-md-none" href="/dashboard">
+                    <i class="fas fa-robot me-2"></i>Octopus Messenger
+                </a>
+            </div>
+            
+            <div class="navbar-nav">
+                <div class="nav-item dropdown">
+                    <div class="user-menu">
+                        <div class="user-avatar" data-bs-toggle="dropdown">
+                            {{#if user.displayName}}
+                                {{substring user.displayName 0 1}}
+                            {{else}}
+                                <i class="fas fa-user"></i>
+                            {{/if}}
+                        </div>
                         <ul class="dropdown-menu dropdown-menu-end">
+                            <li><h6 class="dropdown-header">{{user.displayName}}</h6></li>
+                            <li><span class="dropdown-item-text small text-muted">{{user.email}}</span></li>
+                            <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="/profile"><i class="fas fa-user me-2"></i>个人资料</a></li>
                             <li><a class="dropdown-item" href="/settings"><i class="fas fa-cog me-2"></i>设置</a></li>
                             <li><hr class="dropdown-divider"></li>
@@ -108,132 +441,35 @@
                             </li>
                         </ul>
                     </div>
-                {{else}}
-                    <a class="nav-link px-3" href="/login">
-                        <i class="fas fa-sign-in-alt me-1"></i>登录
-                    </a>
-                {{/if}}
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
 
-    <div class="container-fluid">
-        <div class="row">
-            {{#if isAuthenticated}}
-            <!-- 侧边栏 -->
-            <nav id="sidebarMenu" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
-                <div class="position-sticky pt-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item">
-                            <a class="nav-link {{#if (eq currentPath '/')}}active{{/if}}" href="/">
-                                <i class="fas fa-tachometer-alt me-2"></i>仪表板
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{#if (eq currentPath '/messages')}}active{{/if}}" href="/messages">
-                                <i class="fas fa-comments me-2"></i>消息管理
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{#if (eq currentPath '/tasks')}}active{{/if}}" href="/tasks">
-                                <i class="fas fa-tasks me-2"></i>任务管理
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{#if (eq currentPath '/bots')}}active{{/if}}" href="/bots">
-                                <i class="fas fa-robot me-2"></i>Bot管理
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{#if (eq currentPath '/integrations')}}active{{/if}}" href="/integrations">
-                                <i class="fas fa-plug me-2"></i>CRM集成
-                            </a>
-                        </li>
-                        {{#if (eq user.role 'admin')}}
-                        <li class="nav-item">
-                            <a class="nav-link {{#if (eq currentPath '/users')}}active{{/if}}" href="/users">
-                                <i class="fas fa-users me-2"></i>用户管理
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link {{#if (eq currentPath '/settings')}}active{{/if}}" href="/settings">
-                                <i class="fas fa-cog me-2"></i>系统设置
-                            </a>
-                        </li>
-                        {{/if}}
-                    </ul>
-
-                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
-                        <span>统计信息</span>
-                    </h6>
-                    <ul class="nav flex-column mb-2">
-                        <li class="nav-item">
-                            <a class="nav-link" href="/analytics">
-                                <i class="fas fa-chart-bar me-2"></i>数据分析
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" href="/logs">
-                                <i class="fas fa-file-alt me-2"></i>系统日志
-                            </a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-            {{/if}}
-
-            <!-- 主内容区域 -->
-            <main class="{{#if isAuthenticated}}col-md-9 ms-sm-auto col-lg-10 px-md-4{{else}}col-12{{/if}} main-content">
-                <!-- 面包屑导航 -->
-                {{#if isAuthenticated}}
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-                    <h1 class="h2">{{title}}</h1>
-                    <div class="btn-toolbar mb-2 mb-md-0">
-                        <div class="btn-group me-2">
-                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="location.reload()">
-                                <i class="fas fa-sync-alt me-1"></i>刷新
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                {{/if}}
-
-                <!-- 页面内容 -->
-                {{{body}}}
-            </main>
+        <!-- 内容区域 -->
+        <div class="content-wrapper">
+            {{{body}}}
         </div>
     </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
-    <!-- Socket.IO 连接 -->
-    {{#if isAuthenticated}}
     <script>
-        // 初始化Socket.IO连接
-        const socket = io();
-        
-        // 加入租户房间
-        socket.emit('join-tenant', '{{user.tenantId}}');
-        
-        // 监听实时通知
-        socket.on('notification', function(data) {
-            showNotification(data.message, data.type || 'info');
+        // 侧边栏切换
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            document.getElementById('sidebar').classList.toggle('show');
         });
-        
-        // 监听系统状态更新
-        socket.on('status-update', function(data) {
-            updateSystemStatus(data);
-        });
-        
-        // 显示通知
+
+        // 工具函数
+        function substring(str, start, length) {
+            return str ? str.substring(start, start + length).toUpperCase() : '';
+        }
+
+        // 全局通知函数
         function showNotification(message, type = 'info') {
-            const alertClass = {
-                'success': 'alert-success',
-                'error': 'alert-danger',
-                'warning': 'alert-warning',
-                'info': 'alert-info'
-            }[type] || 'alert-info';
+            const alertClass = type === 'success' ? 'alert-success' : 
+                              type === 'error' ? 'alert-danger' : 
+                              type === 'warning' ? 'alert-warning' : 'alert-info';
             
             const alertHtml = `
                 <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
@@ -242,35 +478,17 @@
                 </div>
             `;
             
-            // 添加到页面顶部
-            const container = document.querySelector('.main-content');
-            const alertElement = document.createElement('div');
-            alertElement.innerHTML = alertHtml;
-            container.insertBefore(alertElement, container.firstChild);
+            const container = document.querySelector('.content-wrapper');
+            container.insertAdjacentHTML('afterbegin', alertHtml);
             
-            // 3秒后自动隐藏
+            // 自动隐藏
             setTimeout(() => {
-                const alert = alertElement.querySelector('.alert');
+                const alert = container.querySelector('.alert');
                 if (alert) {
-                    alert.classList.remove('show');
-                    setTimeout(() => alertElement.remove(), 150);
+                    alert.remove();
                 }
-            }, 3000);
-        }
-        
-        // 更新系统状态
-        function updateSystemStatus(data) {
-            // 更新状态指示器
-            const statusElements = document.querySelectorAll('[data-status]');
-            statusElements.forEach(element => {
-                const service = element.getAttribute('data-status');
-                if (data[service]) {
-                    element.className = data[service].healthy ? 'badge bg-success' : 'badge bg-danger';
-                    element.textContent = data[service].healthy ? '正常' : '异常';
-                }
-            });
+            }, 5000);
         }
     </script>
-    {{/if}}
 </body>
 </html> 

@@ -193,11 +193,12 @@ app.post('/login', async (req, res) => {
     try {
         const { loginType, username, email, password } = req.body;
         
-        // 根据登录类型选择字段
-        const loginData = loginType === 'email' ? { email, password } : { username, password };
+        logger.info('Login attempt:', { loginType, username, email: email ? email.substring(0, 5) + '***' : null });
         
-        // 通过API客户端验证用户
-        const loginResult = await apiClient.login(loginData);
+        // 直接使用备用登录方法，因为gateway API只支持邮箱登录
+        const loginResult = await apiClient.fallbackLogin(
+            loginType === 'email' ? { email, password } : { username, password }
+        );
         
         if (loginResult.success) {
             req.session.user = loginResult.user;
@@ -216,7 +217,7 @@ app.post('/login', async (req, res) => {
             res.render('auth/login', { 
                 title: '登录 - Octopus Messenger',
                 layout: 'auth',
-                error: '用户名/邮箱或密码错误',
+                error: loginResult.message || '用户名/邮箱或密码错误',
                 loginType,
                 username,
                 email
@@ -252,6 +253,11 @@ const requireAuth = (req, res, next) => {
     }
     // 设置API客户端的认证token
     apiClient.setAuthToken(req.session.token);
+    
+    // 设置模板变量
+    res.locals.user = req.session.user;
+    res.locals.currentPath = req.path;
+    
     next();
 };
 

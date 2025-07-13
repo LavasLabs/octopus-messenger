@@ -210,8 +210,15 @@ class APIClient {
     // 备用登录方法（直接验证数据库）
     async fallbackLogin(credentials) {
         try {
-            const bcrypt = require('bcrypt');
+            const bcrypt = require('bcryptjs');
             const { Pool } = require('pg');
+            const logger = require('./logger');
+            
+            logger.info('Fallback login attempt:', { 
+                hasEmail: !!credentials.email, 
+                hasUsername: !!credentials.username,
+                hasPassword: !!credentials.password 
+            });
             
             const pool = new Pool({
                 host: process.env.DB_HOST || 'postgres',
@@ -232,18 +239,50 @@ class APIClient {
                 params = [credentials.username, 'active'];
             }
 
+            logger.info('Database query:', { query, params: [params[0], params[1]] });
+
             const result = await pool.query(query, params);
             
+            logger.info('Database result:', { rowCount: result.rows.length });
+            
             if (result.rows.length === 0) {
+                await pool.end();
                 return { success: false, message: '用户不存在或已被禁用' };
             }
 
             const user = result.rows[0];
             
+            logger.info('Found user:', { 
+                id: user.id, 
+                username: user.username, 
+                email: user.email,
+                hasPasswordHash: !!user.password_hash
+            });
+            
             // 验证密码
-            const isValidPassword = await bcrypt.compare(credentials.password, user.password_hash);
+            logger.info('Password comparison data:', { 
+                passwordType: typeof credentials.password,
+                passwordValue: credentials.password,
+                hashType: typeof user.password_hash,
+                hashValue: user.password_hash ? user.password_hash.substring(0, 10) + '...' : 'null'
+            });
+            
+            // 确保参数都是字符串
+            const password = String(credentials.password || '');
+            const passwordHash = String(user.password_hash || '');
+            
+            if (!password || !passwordHash) {
+                logger.error('Missing password or hash');
+                await pool.end();
+                return { success: false, message: '密码验证失败' };
+            }
+            
+            const isValidPassword = await bcrypt.compare(password, passwordHash);
+            
+            logger.info('Password validation result:', { isValidPassword });
             
             if (!isValidPassword) {
+                await pool.end();
                 return { success: false, message: '密码错误' };
             }
 
@@ -265,7 +304,7 @@ class APIClient {
             };
         } catch (error) {
             logger.error('Fallback login error:', error);
-            return { success: false, message: '登录失败，请稍后重试' };
+            return { success: false, message: '登录失败，请稍后重试: ' + error.message };
         }
     }
 
