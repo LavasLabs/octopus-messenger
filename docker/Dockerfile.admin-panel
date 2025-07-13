@@ -7,8 +7,15 @@ WORKDIR /app
 COPY package*.json ./
 COPY services/admin-panel/package*.json ./services/admin-panel/
 
-# 安装依赖
-RUN npm ci --only=production
+# 安装根目录依赖
+RUN npm install --only=production
+
+# 安装管理面板依赖
+WORKDIR /app/services/admin-panel
+RUN npm install --only=production
+
+# 回到根目录
+WORKDIR /app
 
 # 复制源代码
 COPY services/admin-panel/ ./services/admin-panel/
