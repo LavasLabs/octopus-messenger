@@ -1,0 +1,985 @@
+{{#if error}}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{error}}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{{/if}}
+
+<div class="merchants-container p-4">
+    <!-- 页面标题 -->
+    <div class="page-header mb-5">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="page-title">
+                    <i class="fas fa-store me-2"></i>商户管理
+                </h1>
+                <p class="text-muted">管理系统中的所有商户账户和配置</p>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary" onclick="showCreateMerchantModal()">
+                        <i class="fas fa-plus me-2"></i>创建商户
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="refreshMerchants()">
+                        <i class="fas fa-sync-alt me-2"></i>刷新
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 商户统计 -->
+    <div class="row mb-5">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-primary">
+                            <i class="fas fa-store"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.totalMerchants}}</div>
+                            <div class="stats-label">总商户数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-success">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.activeMerchants}}</div>
+                            <div class="stats-label">活跃商户</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-info">
+                            <i class="fas fa-robot"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.totalBots}}</div>
+                            <div class="stats-label">关联Bot数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-warning">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.totalMessages}}</div>
+                            <div class="stats-label">总消息数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选和搜索 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">业务类型</label>
+                    <select class="form-select" id="businessTypeFilter">
+                        <option value="">全部类型</option>
+                        <option value="餐饮服务">餐饮服务</option>
+                        <option value="零售商店">零售商店</option>
+                        <option value="服务业">服务业</option>
+                        <option value="制造业">制造业</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">状态筛选</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">全部状态</option>
+                        <option value="active">活跃</option>
+                        <option value="inactive">非活跃</option>
+                        <option value="suspended">已暂停</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">平台筛选</label>
+                    <select class="form-select" id="platformFilter">
+                        <option value="">全部平台</option>
+                        <option value="telegram">Telegram</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="slack">Slack</option>
+                        <option value="discord">Discord</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">搜索</label>
+                    <input type="text" class="form-control" placeholder="搜索商户名称或ID..." id="searchInput">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 商户列表 -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list me-2"></i>商户列表
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>商户信息</th>
+                            <th>业务类型</th>
+                            <th>关联Bot</th>
+                            <th>消息统计</th>
+                            <th>状态</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#if merchants}}
+                            {{#each merchants}}
+                            <tr>
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <div class="merchant-avatar me-3">
+                                            <div class="avatar-circle">
+                                                {{substring name 0 1}}
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <div class="fw-semibold">{{name}}</div>
+                                            <div class="text-muted small">ID: {{id}}</div>
+                                            {{#if industry}}
+                                                <div class="text-muted small">{{industry}}</div>
+                                            {{/if}}
+                                        </div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">{{businessType}}</span>
+                                </td>
+                                <td>
+                                    <div class="text-center">
+                                        <div class="fw-semibold">{{totalBots}}</div>
+                                        <div class="text-success small">活跃: {{activeBots}}</div>
+                                        {{#if platforms}}
+                                            <div class="mt-1">
+                                                {{#each platforms}}
+                                                    <span class="badge bg-{{#if (eq this 'telegram')}}info{{else if (eq this 'whatsapp')}}success{{else if (eq this 'slack')}}warning{{else}}secondary{{/if}} me-1">
+                                                        {{#if (eq this 'telegram')}}TG{{else if (eq this 'whatsapp')}}WA{{else if (eq this 'slack')}}SL{{else}}{{this}}{{/if}}
+                                                    </span>
+                                                {{/each}}
+                                            </div>
+                                        {{/if}}
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="text-center">
+                                        <div class="fw-semibold">{{totalMessages}}</div>
+                                        <div class="text-muted small">总消息数</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge {{#if (eq status 'active')}}bg-success{{else if (eq status 'inactive')}}bg-warning{{else}}bg-danger{{/if}}">
+                                        {{#if (eq status 'active')}}活跃{{else if (eq status 'inactive')}}非活跃{{else}}已暂停{{/if}}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div class="text-nowrap">
+                                        <div class="fw-semibold">{{formatDate createdAt}}</div>
+                                        <div class="text-muted small">{{formatTime createdAt}}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="viewMerchant('{{id}}')" title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success" onclick="editMerchant('{{id}}')" title="编辑">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="btn btn-outline-info" onclick="viewMerchantStats('{{id}}')" title="统计">
+                                            <i class="fas fa-chart-bar"></i>
+                                        </button>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" onclick="manageBots('{{id}}')">
+                                                    <i class="fas fa-robot me-2"></i>管理Bot
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="generateInviteCode('{{id}}')">
+                                                    <i class="fas fa-ticket-alt me-2"></i>生成邀请码
+                                                </a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteMerchant('{{id}}')">
+                                                    <i class="fas fa-trash me-2"></i>删除
+                                                </a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {{/each}}
+                        {{else}}
+                            <tr>
+                                <td colspan="7" class="text-center py-5">
+                                    <i class="fas fa-store fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">暂无商户数据</p>
+                                    <button class="btn btn-primary" onclick="showCreateMerchantModal()">
+                                        <i class="fas fa-plus me-2"></i>创建第一个商户
+                                    </button>
+                                </td>
+                            </tr>
+                        {{/if}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 创建商户模态框 -->
+<div class="modal fade" id="createMerchantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>创建新商户
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createMerchantForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">商户名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="merchantName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">业务类型</label>
+                                <select class="form-select" name="businessType">
+                                    <option value="">请选择</option>
+                                    <option value="餐饮服务">餐饮服务</option>
+                                    <option value="零售商店">零售商店</option>
+                                    <option value="服务业">服务业</option>
+                                    <option value="制造业">制造业</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">行业分类</label>
+                                <input type="text" class="form-control" name="industry" placeholder="如：奶茶、咖啡、手机维修等">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">联系电话</label>
+                                <input type="tel" class="form-control" name="contactPhone" placeholder="13812345678">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">联系邮箱</label>
+                                <input type="email" class="form-control" name="contactEmail" placeholder="contact@example.com">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">状态</label>
+                                <select class="form-select" name="status">
+                                    <option value="active">活跃</option>
+                                    <option value="inactive">非活跃</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">联系地址</label>
+                        <textarea class="form-control" name="contactAddress" rows="2" placeholder="详细地址"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">商户描述</label>
+                        <textarea class="form-control" name="description" rows="3" placeholder="简要描述商户的业务和特色"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">欢迎消息</label>
+                        <textarea class="form-control" name="welcomeMessage" rows="2" placeholder="客户首次联系时的欢迎消息"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createMerchant()">
+                    <i class="fas fa-save me-2"></i>创建商户
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑商户模态框 -->
+<div class="modal fade" id="editMerchantModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>编辑商户
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editMerchantForm">
+                    <input type="hidden" name="merchantId" id="editMerchantId">
+                    <!-- 表单内容与创建相同 -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">商户名称 <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="merchantName" id="editMerchantName" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">业务类型</label>
+                                <select class="form-select" name="businessType" id="editBusinessType">
+                                    <option value="">请选择</option>
+                                    <option value="餐饮服务">餐饮服务</option>
+                                    <option value="零售商店">零售商店</option>
+                                    <option value="服务业">服务业</option>
+                                    <option value="制造业">制造业</option>
+                                    <option value="其他">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">行业分类</label>
+                                <input type="text" class="form-control" name="industry" id="editIndustry">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">联系电话</label>
+                                <input type="tel" class="form-control" name="contactPhone" id="editContactPhone">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">联系邮箱</label>
+                                <input type="email" class="form-control" name="contactEmail" id="editContactEmail">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">状态</label>
+                                <select class="form-select" name="status" id="editStatus">
+                                    <option value="active">活跃</option>
+                                    <option value="inactive">非活跃</option>
+                                    <option value="suspended">已暂停</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">联系地址</label>
+                        <textarea class="form-control" name="contactAddress" id="editContactAddress" rows="2"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">商户描述</label>
+                        <textarea class="form-control" name="description" id="editDescription" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="updateMerchant()">
+                    <i class="fas fa-save me-2"></i>保存更改
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 商户详情模态框 -->
+<div class="modal fade" id="merchantDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>商户详情
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="merchantDetailContent">
+                    <!-- 动态加载商户详情 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 商户统计模态框 -->
+<div class="modal fade" id="merchantStatsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-chart-bar me-2"></i>商户统计
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="merchantStatsContent">
+                    <!-- 动态加载统计数据 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 刷新商户列表
+function refreshMerchants() {
+    location.reload();
+}
+
+// 显示创建商户模态框
+function showCreateMerchantModal() {
+    document.getElementById('createMerchantForm').reset();
+    new bootstrap.Modal(document.getElementById('createMerchantModal')).show();
+}
+
+// 创建商户
+async function createMerchant() {
+    const form = document.getElementById('createMerchantForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const response = await fetch('/api/merchants', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('createMerchantModal')).hide();
+            showAlert('success', '商户创建成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '创建失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 编辑商户
+async function editMerchant(merchantId) {
+    try {
+        const response = await fetch(`/api/merchants/${merchantId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const merchant = result.data.merchant;
+            
+            // 填充表单
+            document.getElementById('editMerchantId').value = merchant.id;
+            document.getElementById('editMerchantName').value = merchant.name;
+            document.getElementById('editBusinessType').value = merchant.businessType || '';
+            document.getElementById('editIndustry').value = merchant.industry || '';
+            document.getElementById('editContactPhone').value = merchant.contactPhone || '';
+            document.getElementById('editContactEmail').value = merchant.contactEmail || '';
+            document.getElementById('editStatus').value = merchant.status;
+            document.getElementById('editContactAddress').value = merchant.contactAddress || '';
+            document.getElementById('editDescription').value = merchant.description || '';
+            
+            new bootstrap.Modal(document.getElementById('editMerchantModal')).show();
+        } else {
+            showAlert('danger', '获取商户信息失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 更新商户
+async function updateMerchant() {
+    const form = document.getElementById('editMerchantForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    const merchantId = data.merchantId;
+    delete data.merchantId;
+    
+    try {
+        const response = await fetch(`/api/merchants/${merchantId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editMerchantModal')).hide();
+            showAlert('success', '商户更新成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '更新失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 查看商户详情
+async function viewMerchant(merchantId) {
+    try {
+        const response = await fetch(`/api/merchants/${merchantId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const merchant = result.data.merchant;
+            const bots = result.data.bots || [];
+            const inviteCodes = result.data.inviteCodes || [];
+            
+            const content = `
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">基本信息</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <p><strong>商户ID:</strong> ${merchant.id}</p>
+                                        <p><strong>商户名称:</strong> ${merchant.name}</p>
+                                        <p><strong>业务类型:</strong> ${merchant.businessType || '未设置'}</p>
+                                        <p><strong>行业分类:</strong> ${merchant.industry || '未设置'}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>联系电话:</strong> ${merchant.contactPhone || '未设置'}</p>
+                                        <p><strong>联系邮箱:</strong> ${merchant.contactEmail || '未设置'}</p>
+                                        <p><strong>状态:</strong> <span class="badge bg-${merchant.status === 'active' ? 'success' : 'warning'}">${merchant.status === 'active' ? '活跃' : '非活跃'}</span></p>
+                                        <p><strong>创建时间:</strong> ${new Date(merchant.createdAt).toLocaleString()}</p>
+                                    </div>
+                                </div>
+                                ${merchant.contactAddress ? `<p><strong>联系地址:</strong> ${merchant.contactAddress}</p>` : ''}
+                                ${merchant.description ? `<p><strong>商户描述:</strong> ${merchant.description}</p>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">统计信息</h6>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>关联Bot数:</strong> ${merchant.totalBots || 0}</p>
+                                <p><strong>总消息数:</strong> ${merchant.totalMessages || 0}</p>
+                                <p><strong>总客户数:</strong> ${merchant.totalCustomers || 0}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">关联Bot (${bots.length})</h6>
+                            </div>
+                            <div class="card-body">
+                                ${bots.length > 0 ? bots.map(bot => `
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <strong>${bot.name}</strong>
+                                            <span class="badge bg-info ms-2">${bot.platform}</span>
+                                        </div>
+                                        <span class="badge bg-${bot.isActive ? 'success' : 'secondary'}">${bot.isActive ? '运行中' : '已停止'}</span>
+                                    </div>
+                                `).join('') : '<p class="text-muted">暂无关联Bot</p>'}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">邀请码 (${inviteCodes.length})</h6>
+                            </div>
+                            <div class="card-body">
+                                ${inviteCodes.length > 0 ? inviteCodes.map(code => `
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <div>
+                                            <code>${code.code}</code>
+                                            <span class="badge bg-info ms-2">${code.platform}</span>
+                                        </div>
+                                        <small class="text-muted">${code.usedCount}/${code.maxUses}</small>
+                                    </div>
+                                `).join('') : '<p class="text-muted">暂无邀请码</p>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('merchantDetailContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('merchantDetailModal')).show();
+        } else {
+            showAlert('danger', '获取商户详情失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 查看商户统计
+async function viewMerchantStats(merchantId) {
+    try {
+        const response = await fetch(`/api/merchants/${merchantId}/stats`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const stats = result.data.stats;
+            const merchant = result.data.merchant;
+            
+            const content = `
+                <div class="row">
+                    <div class="col-md-12">
+                        <h6>商户: ${merchant.name}</h6>
+                        <hr>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-primary">${stats.totalBots}</h4>
+                            <p class="text-muted">总Bot数</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-success">${stats.activeBots}</h4>
+                            <p class="text-muted">活跃Bot数</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-info">${stats.totalMessages}</h4>
+                            <p class="text-muted">总消息数</p>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h4 class="text-warning">${stats.totalCustomers}</h4>
+                            <p class="text-muted">总客户数</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">活跃客户统计</h6>
+                            </div>
+                            <div class="card-body">
+                                <p><strong>7天活跃:</strong> ${stats.activeCustomers7d} 人</p>
+                                <p><strong>30天活跃:</strong> ${stats.activeCustomers30d} 人</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">活跃平台</h6>
+                            </div>
+                            <div class="card-body">
+                                ${stats.activePlatforms && stats.activePlatforms.length > 0 ? 
+                                    stats.activePlatforms.map(platform => `
+                                        <span class="badge bg-info me-2">${platform}</span>
+                                    `).join('') : 
+                                    '<p class="text-muted">暂无活跃平台</p>'
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('merchantStatsContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('merchantStatsModal')).show();
+        } else {
+            showAlert('danger', '获取统计数据失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 管理Bot
+function manageBots(merchantId) {
+    window.location.href = `/bots?merchantId=${merchantId}`;
+}
+
+// 生成邀请码
+async function generateInviteCode(merchantId) {
+    const platform = prompt('请输入平台类型 (telegram/whatsapp/slack/discord):');
+    if (!platform) return;
+    
+    try {
+        const response = await fetch(`/api/merchants/${merchantId}/invite-codes`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                platform: platform,
+                maxUses: 10,
+                expiresInDays: 30
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert(`邀请码生成成功: ${result.data.inviteCode.code}`);
+        } else {
+            showAlert('danger', result.message || '生成邀请码失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 删除商户
+async function deleteMerchant(merchantId) {
+    if (!confirm('确定要删除这个商户吗？此操作不可恢复！')) return;
+    
+    try {
+        const response = await fetch(`/api/merchants/${merchantId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', '商户删除成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '删除失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 显示提示消息
+function showAlert(type, message) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.merchants-container');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) alert.remove();
+    }, 5000);
+}
+
+// 筛选和搜索功能
+document.addEventListener('DOMContentLoaded', function() {
+    const businessTypeFilter = document.getElementById('businessTypeFilter');
+    const statusFilter = document.getElementById('statusFilter');
+    const platformFilter = document.getElementById('platformFilter');
+    const searchInput = document.getElementById('searchInput');
+    
+    [businessTypeFilter, statusFilter, platformFilter, searchInput].forEach(element => {
+        element.addEventListener('change', filterMerchants);
+        element.addEventListener('input', filterMerchants);
+    });
+    
+    function filterMerchants() {
+        const businessType = businessTypeFilter.value.toLowerCase();
+        const status = statusFilter.value.toLowerCase();
+        const platform = platformFilter.value.toLowerCase();
+        const search = searchInput.value.toLowerCase();
+        
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const businessTypeMatch = !businessType || text.includes(businessType);
+            const statusMatch = !status || text.includes(status);
+            const platformMatch = !platform || text.includes(platform);
+            const searchMatch = !search || text.includes(search);
+            
+            row.style.display = (businessTypeMatch && statusMatch && platformMatch && searchMatch) ? '' : 'none';
+        });
+    }
+});
+</script>
+
+<style>
+.merchants-container {
+    background-color: #f8f9fa;
+    min-height: calc(100vh - 60px);
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+}
+
+.stats-card-body {
+    padding: 0;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #333;
+    line-height: 1;
+}
+
+.stats-label {
+    font-size: 0.875rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.merchant-avatar .avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 1.1rem;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    padding: 1rem 0.75rem;
+}
+
+.table td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,0.025);
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.modal-xl {
+    max-width: 1200px;
+}
+
+.modal-lg {
+    max-width: 900px;
+}
+</style> 

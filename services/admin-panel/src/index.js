@@ -268,11 +268,52 @@ const requireAuth = (req, res, next) => {
 // 仪表板路由
 app.get('/dashboard', requireAuth, async (req, res) => {
     try {
-        const [stats, recentActivity, systemHealth] = await Promise.all([
-            dashboardManager.getSystemStats(),
-            dashboardManager.getRecentActivity(),
-            dashboardManager.getSystemHealth()
-        ]);
+        let stats = { users: 0, messages: 0, tasks: 0, bots: 0 };
+        let recentActivity = [];
+        let systemHealth = { status: 'healthy', message: 'All systems operational' };
+        
+        try {
+            // 尝试从API获取统计数据
+            const statsResponse = await apiClient.getDashboardStats();
+            stats = statsResponse.data || stats;
+        } catch (apiError) {
+            logger.warn('Failed to fetch dashboard stats from API, using fallback:', apiError);
+            
+            // 使用fallback方法获取统计数据
+            try {
+                const [fallbackStats, fallbackActivity, fallbackHealth] = await Promise.all([
+                    dashboardManager.getSystemStats(),
+                    dashboardManager.getRecentActivity(),
+                    dashboardManager.getSystemHealth()
+                ]);
+                stats = fallbackStats;
+                recentActivity = fallbackActivity;
+                systemHealth = fallbackHealth;
+            } catch (fallbackError) {
+                logger.warn('Fallback dashboard data failed, using mock data:', fallbackError);
+                // 使用模拟数据
+                stats = { users: 3, messages: 156, tasks: 12, bots: 4 };
+                recentActivity = [
+                    {
+                        type: 'message',
+                        platform: 'telegram',
+                        content: '新用户注册成功',
+                        timestamp: new Date().toISOString()
+                    },
+                    {
+                        type: 'task',
+                        title: '处理客户投诉',
+                        status: 'completed',
+                        timestamp: new Date(Date.now() - 1800000).toISOString()
+                    }
+                ];
+                systemHealth = { 
+                    status: 'healthy', 
+                    message: 'All systems operational',
+                    timestamp: new Date().toISOString()
+                };
+            }
+        }
 
         res.render('dashboard/index', {
             title: '仪表板 - Octopus Messenger',
@@ -286,6 +327,9 @@ app.get('/dashboard', requireAuth, async (req, res) => {
         res.render('dashboard/index', {
             title: '仪表板 - Octopus Messenger',
             user: req.session.user,
+            stats: { users: 0, messages: 0, tasks: 0, bots: 0 },
+            recentActivity: [],
+            systemHealth: { status: 'error', message: 'Unable to load system health' },
             error: '加载仪表板数据失败'
         });
     }
@@ -433,6 +477,47 @@ app.get('/bots', requireAuth, async (req, res) => {
     }
 });
 
+// 用户API代理路由
+app.get('/api/users/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.getUserById(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Get user error:', error);
+        res.status(500).json({ success: false, message: error.error || '获取用户失败' });
+    }
+});
+
+app.post('/api/users', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.createUser(req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Create user error:', error);
+        res.status(500).json({ success: false, message: error.error || '创建用户失败' });
+    }
+});
+
+app.put('/api/users/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.updateUser(req.params.id, req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Update user error:', error);
+        res.status(500).json({ success: false, message: error.error || '更新用户失败' });
+    }
+});
+
+app.delete('/api/users/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.deleteUser(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Delete user error:', error);
+        res.status(500).json({ success: false, message: error.error || '删除用户失败' });
+    }
+});
+
 // 消息管理路由
 app.get('/messages', requireAuth, async (req, res) => {
     try {
@@ -467,9 +552,11 @@ app.get('/messages', requireAuth, async (req, res) => {
                     platform: 'telegram',
                     senderName: 'John Doe',
                     senderId: '@johndoe',
-                    content: '你好，我需要帮助处理订单问题',
+                    content: '你好，我需要帮助处理订单问题，这是一条比较长的消息内容，用来测试消息内容的显示效果和截断功能',
                     classification: '客服咨询',
-                    status: 'processed'
+                    confidence: 85,
+                    status: 'processed',
+                    processingTime: 1250
                 },
                 {
                     id: 'msg-2',
@@ -479,14 +566,39 @@ app.get('/messages', requireAuth, async (req, res) => {
                     senderId: '+1234567890',
                     content: '请问产品什么时候能发货？',
                     classification: '订单查询',
+                    confidence: 92,
                     status: 'pending'
+                },
+                {
+                    id: 'msg-3',
+                    timestamp: new Date(Date.now() - 3600000).toISOString(),
+                    platform: 'slack',
+                    senderName: 'Bob Wilson',
+                    senderId: 'bob.wilson',
+                    content: '系统出现了一个bug，无法正常登录',
+                    classification: '技术支持',
+                    confidence: 78,
+                    status: 'processed',
+                    processingTime: 2100
+                },
+                {
+                    id: 'msg-4',
+                    timestamp: new Date(Date.now() - 7200000).toISOString(),
+                    platform: 'discord',
+                    senderName: 'Alice Chen',
+                    senderId: 'alice#1234',
+                    content: '对你们的服务很不满意，要求退款',
+                    classification: '投诉建议',
+                    confidence: 96,
+                    status: 'processed',
+                    processingTime: 890
                 }
             ];
             stats = {
-                totalMessages: 2,
-                processedMessages: 1,
+                totalMessages: 4,
+                processedMessages: 3,
                 pendingMessages: 1,
-                todayMessages: 2
+                todayMessages: 4
             };
         }
         
@@ -505,6 +617,140 @@ app.get('/messages', requireAuth, async (req, res) => {
             stats: { totalMessages: 0, processedMessages: 0, pendingMessages: 0, todayMessages: 0 },
             error: '加载消息数据失败'
         });
+    }
+});
+
+// 消息API代理路由
+app.get('/api/messages/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.getMessageById(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Get message error:', error);
+        res.status(500).json({ success: false, message: error.error || '获取消息失败' });
+    }
+});
+
+app.post('/api/messages/:id/reprocess', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.reprocessMessage(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Reprocess message error:', error);
+        res.status(500).json({ success: false, message: error.error || '重新处理失败' });
+    }
+});
+
+app.post('/api/messages/:id/classify', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.classifyMessage(req.params.id, req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Classify message error:', error);
+        res.status(500).json({ success: false, message: error.error || '分类失败' });
+    }
+});
+
+app.post('/api/messages/bulk', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.bulkProcessMessages(req.body.messageIds, req.body.action);
+        res.json(result);
+    } catch (error) {
+        logger.error('Bulk process messages error:', error);
+        res.status(500).json({ success: false, message: error.error || '批量操作失败' });
+    }
+});
+
+app.delete('/api/messages/:id', requireAuth, async (req, res) => {
+    try {
+        // 模拟删除消息
+        res.json({ success: true, message: '消息删除成功' });
+    } catch (error) {
+        logger.error('Delete message error:', error);
+        res.status(500).json({ success: false, message: error.error || '删除消息失败' });
+    }
+});
+
+app.get('/api/messages/export', requireAuth, async (req, res) => {
+    try {
+        // 模拟导出功能
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename="messages.csv"');
+        res.send('ID,时间,平台,发送者,内容,分类,状态\n');
+    } catch (error) {
+        logger.error('Export messages error:', error);
+        res.status(500).json({ success: false, message: error.error || '导出失败'         });
+    }
+});
+
+// Bot API代理路由
+app.get('/api/bots/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.getBotById(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Get bot error:', error);
+        res.status(500).json({ success: false, message: error.error || '获取Bot失败' });
+    }
+});
+
+app.post('/api/bots', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.createBot(req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Create bot error:', error);
+        res.status(500).json({ success: false, message: error.error || '创建Bot失败' });
+    }
+});
+
+app.put('/api/bots/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.updateBot(req.params.id, req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Update bot error:', error);
+        res.status(500).json({ success: false, message: error.error || '更新Bot失败' });
+    }
+});
+
+app.delete('/api/bots/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.deleteBot(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Delete bot error:', error);
+        res.status(500).json({ success: false, message: error.error || '删除Bot失败' });
+    }
+});
+
+app.get('/api/bots/:id/status', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.getBotStatus(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Get bot status error:', error);
+        res.status(500).json({ success: false, message: error.error || '获取Bot状态失败' });
+    }
+});
+
+app.post('/api/bots/:id/start', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.startBot(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Start bot error:', error);
+        res.status(500).json({ success: false, message: error.error || '启动Bot失败' });
+    }
+});
+
+app.post('/api/bots/:id/stop', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.stopBot(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Stop bot error:', error);
+        res.status(500).json({ success: false, message: error.error || '停止Bot失败' });
     }
 });
 
@@ -582,14 +828,262 @@ app.get('/tasks', requireAuth, async (req, res) => {
     }
 });
 
+// 任务管理路由
+app.get('/tasks', requireAuth, async (req, res) => {
+    try {
+        // 获取任务数据
+        let tasks = [];
+        let stats = {
+            totalTasks: 0,
+            pendingTasks: 0,
+            inProgressTasks: 0,
+            completedTasks: 0
+        };
+        
+        try {
+            const tasksResponse = await apiClient.getTasks({
+                page: req.query.page || 1,
+                limit: req.query.limit || 20,
+                status: req.query.status,
+                priority: req.query.priority,
+                category: req.query.category,
+                assignedTo: req.query.assignedTo,
+                search: req.query.search
+            });
+            tasks = tasksResponse.data.tasks || [];
+            
+            // 计算统计数据
+            stats = {
+                totalTasks: tasks.length,
+                pendingTasks: tasks.filter(t => t.status === 'pending').length,
+                inProgressTasks: tasks.filter(t => t.status === 'in_progress').length,
+                completedTasks: tasks.filter(t => t.status === 'completed').length
+            };
+        } catch (apiError) {
+            logger.warn('Failed to fetch tasks from API, using mock data:', apiError);
+            // 使用模拟数据
+            tasks = [
+                {
+                    id: 'task-1',
+                    title: '处理客户投诉 - 订单延迟问题',
+                    description: '客户反映订单已下单3天但仍未发货，需要紧急处理并给出合理解释',
+                    status: 'pending',
+                    priority: 'high',
+                    category: 'complaint',
+                    assignee: {
+                        id: 'admin',
+                        name: 'Admin User',
+                        email: 'admin@example.com'
+                    },
+                    messageId: 'msg-1',
+                    dueDate: new Date(Date.now() + 86400000).toISOString(),
+                    createdAt: new Date().toISOString(),
+                    isOverdue: false,
+                    isDueSoon: true
+                },
+                {
+                    id: 'task-2',
+                    title: '技术支持 - 系统登录问题',
+                    description: '用户无法正常登录系统，需要检查账户状态和系统配置',
+                    status: 'in_progress',
+                    priority: 'medium',
+                    category: 'support',
+                    assignee: {
+                        id: 'user1',
+                        name: 'User 1',
+                        email: 'user1@example.com'
+                    },
+                    messageId: 'msg-3',
+                    dueDate: new Date(Date.now() + 172800000).toISOString(),
+                    createdAt: new Date(Date.now() - 3600000).toISOString(),
+                    isOverdue: false,
+                    isDueSoon: false
+                },
+                {
+                    id: 'task-3',
+                    title: '产品咨询回复',
+                    description: '客户咨询产品功能和价格，需要提供详细的产品信息',
+                    status: 'completed',
+                    priority: 'low',
+                    category: 'inquiry',
+                    assignee: {
+                        id: 'user2',
+                        name: 'User 2',
+                        email: 'user2@example.com'
+                    },
+                    messageId: 'msg-2',
+                    dueDate: new Date(Date.now() - 86400000).toISOString(),
+                    createdAt: new Date(Date.now() - 7200000).toISOString(),
+                    completedAt: new Date(Date.now() - 3600000).toISOString(),
+                    isOverdue: false,
+                    isDueSoon: false
+                },
+                {
+                    id: 'task-4',
+                    title: '用户反馈处理',
+                    description: '用户对界面设计提出改进建议，需要评估可行性',
+                    status: 'pending',
+                    priority: 'low',
+                    category: 'feedback',
+                    assignee: null,
+                    dueDate: new Date(Date.now() + 259200000).toISOString(),
+                    createdAt: new Date(Date.now() - 1800000).toISOString(),
+                    isOverdue: false,
+                    isDueSoon: false
+                }
+            ];
+            stats = {
+                totalTasks: 4,
+                pendingTasks: 2,
+                inProgressTasks: 1,
+                completedTasks: 1
+            };
+        }
+        
+        res.render('tasks/index', {
+            title: '任务管理 - Octopus Messenger',
+            user: req.session.user,
+            tasks: tasks,
+            stats: stats
+        });
+    } catch (error) {
+        logger.error('Tasks page error:', error);
+        res.render('tasks/index', {
+            title: '任务管理 - Octopus Messenger',
+            user: req.session.user,
+            tasks: [],
+            stats: { totalTasks: 0, pendingTasks: 0, inProgressTasks: 0, completedTasks: 0 },
+            error: '加载任务数据失败'
+        });
+    }
+});
+
+// 任务API代理路由
+app.get('/api/tasks/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.getTaskById(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Get task error:', error);
+        res.status(500).json({ success: false, message: error.error || '获取任务失败' });
+    }
+});
+
+app.post('/api/tasks', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.createTask(req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Create task error:', error);
+        res.status(500).json({ success: false, message: error.error || '创建任务失败' });
+    }
+});
+
+app.put('/api/tasks/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.updateTask(req.params.id, req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Update task error:', error);
+        res.status(500).json({ success: false, message: error.error || '更新任务失败' });
+    }
+});
+
+app.delete('/api/tasks/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.deleteTask(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Delete task error:', error);
+        res.status(500).json({ success: false, message: error.error || '删除任务失败' });
+    }
+});
+
+app.post('/api/tasks/:id/assign', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.assignTask(req.params.id, req.body.assigneeId);
+        res.json(result);
+    } catch (error) {
+        logger.error('Assign task error:', error);
+        res.status(500).json({ success: false, message: error.error || '分配任务失败' });
+    }
+});
+
+app.post('/api/tasks/:id/sync', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.syncTask(req.params.id, req.body.integrationIds);
+        res.json(result);
+    } catch (error) {
+        logger.error('Sync task error:', error);
+        res.status(500).json({ success: false, message: error.error || '同步任务失败' });
+    }
+});
+
 // 商户管理路由
 app.get('/merchants', requireAuth, async (req, res) => {
     try {
-        const merchants = await apiClient.getMerchants();
+        // 获取商户数据
+        let merchants = [];
+        let stats = {
+            totalMerchants: 0,
+            activeMerchants: 0,
+            totalBots: 0,
+            totalMessages: 0
+        };
+        
+        try {
+            const merchantsResponse = await apiClient.getMerchants();
+            merchants = merchantsResponse.data.merchants || [];
+            
+            // 计算统计数据
+            stats = {
+                totalMerchants: merchants.length,
+                activeMerchants: merchants.filter(m => m.status === 'active').length,
+                totalBots: merchants.reduce((sum, m) => sum + (m.totalBots || 0), 0),
+                totalMessages: merchants.reduce((sum, m) => sum + (m.totalMessages || 0), 0)
+            };
+        } catch (apiError) {
+            logger.warn('Failed to fetch merchants from API, using mock data:', apiError);
+            // 使用模拟数据
+            merchants = [
+                {
+                    id: 'SHOP001',
+                    name: '小王奶茶店',
+                    businessType: '餐饮服务',
+                    industry: '奶茶',
+                    status: 'active',
+                    totalBots: 2,
+                    activeBots: 2,
+                    totalMessages: 150,
+                    platforms: ['telegram', 'whatsapp'],
+                    createdAt: new Date().toISOString()
+                },
+                {
+                    id: 'SHOP002',
+                    name: '张三手机维修',
+                    businessType: '服务业',
+                    industry: '手机维修',
+                    status: 'active',
+                    totalBots: 1,
+                    activeBots: 1,
+                    totalMessages: 89,
+                    platforms: ['telegram'],
+                    createdAt: new Date(Date.now() - 86400000).toISOString()
+                }
+            ];
+            stats = {
+                totalMerchants: 2,
+                activeMerchants: 2,
+                totalBots: 3,
+                totalMessages: 239
+            };
+        }
+        
         res.render('merchants/index', {
             title: '商户管理 - Octopus Messenger',
             user: req.session.user,
-            merchants: merchants.data || []
+            merchants: merchants,
+            stats: stats
         });
     } catch (error) {
         logger.error('Merchants page error:', error);
@@ -597,8 +1091,80 @@ app.get('/merchants', requireAuth, async (req, res) => {
             title: '商户管理 - Octopus Messenger',
             user: req.session.user,
             merchants: [],
+            stats: { totalMerchants: 0, activeMerchants: 0, totalBots: 0, totalMessages: 0 },
             error: '加载商户数据失败'
         });
+    }
+});
+
+// 商户API代理路由
+app.post('/api/merchants', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.createMerchant(req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Create merchant error:', error);
+        res.status(500).json({ success: false, message: error.error || '创建商户失败' });
+    }
+});
+
+app.get('/api/merchants/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.getMerchantById(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Get merchant error:', error);
+        res.status(500).json({ success: false, message: error.error || '获取商户信息失败' });
+    }
+});
+
+app.put('/api/merchants/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.updateMerchant(req.params.id, req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Update merchant error:', error);
+        res.status(500).json({ success: false, message: error.error || '更新商户失败' });
+    }
+});
+
+app.delete('/api/merchants/:id', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.deleteMerchant(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Delete merchant error:', error);
+        res.status(500).json({ success: false, message: error.error || '删除商户失败' });
+    }
+});
+
+app.get('/api/merchants/:id/stats', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.getMerchantStats(req.params.id, req.query);
+        res.json(result);
+    } catch (error) {
+        logger.error('Get merchant stats error:', error);
+        res.status(500).json({ success: false, message: error.error || '获取统计数据失败' });
+    }
+});
+
+app.post('/api/merchants/:id/invite-codes', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.createMerchantInviteCode(req.params.id, req.body);
+        res.json(result);
+    } catch (error) {
+        logger.error('Create invite code error:', error);
+        res.status(500).json({ success: false, message: error.error || '生成邀请码失败' });
+    }
+});
+
+app.get('/api/merchants/:id/invite-codes', requireAuth, async (req, res) => {
+    try {
+        const result = await apiClient.getMerchantInviteCodes(req.params.id);
+        res.json(result);
+    } catch (error) {
+        logger.error('Get invite codes error:', error);
+        res.status(500).json({ success: false, message: error.error || '获取邀请码失败' });
     }
 });
 

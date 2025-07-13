@@ -23,6 +23,9 @@
                     <button type="button" class="btn btn-outline-secondary" onclick="refreshMessages()">
                         <i class="fas fa-sync-alt me-2"></i>刷新
                     </button>
+                    <button type="button" class="btn btn-outline-info" onclick="showBulkActions()">
+                        <i class="fas fa-tasks me-2"></i>批量操作
+                    </button>
                 </div>
             </div>
         </div>
@@ -99,7 +102,7 @@
     <div class="card mb-4">
         <div class="card-body">
             <div class="row g-3">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">平台筛选</label>
                     <select class="form-select" id="platformFilter">
                         <option value="">全部平台</option>
@@ -109,7 +112,7 @@
                         <option value="discord">Discord</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">状态筛选</label>
                     <select class="form-select" id="statusFilter">
                         <option value="">全部状态</option>
@@ -118,13 +121,60 @@
                         <option value="failed">处理失败</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <label class="form-label">分类筛选</label>
+                    <select class="form-select" id="classificationFilter">
+                        <option value="">全部分类</option>
+                        <option value="客服咨询">客服咨询</option>
+                        <option value="订单查询">订单查询</option>
+                        <option value="技术支持">技术支持</option>
+                        <option value="投诉建议">投诉建议</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label class="form-label">日期范围</label>
                     <input type="date" class="form-control" id="dateFilter">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">搜索</label>
                     <input type="text" class="form-control" placeholder="搜索消息内容..." id="searchInput">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 批量操作栏 -->
+    <div class="card mb-4" id="bulkActionsCard" style="display: none;">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <div class="d-flex align-items-center">
+                        <input type="checkbox" class="form-check-input me-2" id="selectAll">
+                        <label class="form-check-label" for="selectAll">全选</label>
+                        <span class="badge bg-secondary ms-3" id="selectedCount">已选择 0 条</span>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="btn-group">
+                        <button class="btn btn-outline-success" onclick="bulkReprocess()">
+                            <i class="fas fa-redo me-2"></i>批量重新处理
+                        </button>
+                        <button class="btn btn-outline-primary" onclick="bulkClassify()">
+                            <i class="fas fa-tags me-2"></i>批量分类
+                        </button>
+                        <button class="btn btn-outline-warning" onclick="bulkCreateTasks()">
+                            <i class="fas fa-plus me-2"></i>创建任务
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="bulkDelete()">
+                            <i class="fas fa-trash me-2"></i>批量删除
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -142,6 +192,9 @@
                 <table class="table table-hover mb-0">
                     <thead class="table-light">
                         <tr>
+                            <th width="50">
+                                <input type="checkbox" class="form-check-input" id="selectAllMessages">
+                            </th>
                             <th>时间</th>
                             <th>平台</th>
                             <th>发送者</th>
@@ -155,6 +208,9 @@
                         {{#if messages}}
                             {{#each messages}}
                             <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input message-checkbox" value="{{id}}">
+                                </td>
                                 <td>
                                     <div class="text-nowrap">
                                         <div class="fw-semibold">{{formatTime timestamp}}</div>
@@ -182,7 +238,11 @@
                                 <td>
                                     <div class="message-content">
                                         {{#if (gt content.length 100)}}
-                                            {{substring content 0 100}}...
+                                            <span class="message-preview">{{substring content 0 100}}...</span>
+                                            <button class="btn btn-link btn-sm p-0 ms-1" onclick="toggleMessageContent(this)">
+                                                <i class="fas fa-expand-alt"></i>
+                                            </button>
+                                            <div class="message-full" style="display: none;">{{content}}</div>
                                         {{else}}
                                             {{content}}
                                         {{/if}}
@@ -191,30 +251,59 @@
                                 <td>
                                     {{#if classification}}
                                         <span class="badge bg-primary">{{classification}}</span>
+                                        {{#if confidence}}
+                                            <div class="text-muted small">置信度: {{confidence}}%</div>
+                                        {{/if}}
                                     {{else}}
                                         <span class="badge bg-secondary">未分类</span>
+                                        <button class="btn btn-link btn-sm p-0 ms-1" onclick="classifyMessage('{{id}}')">
+                                            <i class="fas fa-magic"></i>
+                                        </button>
                                     {{/if}}
                                 </td>
                                 <td>
                                     <span class="badge {{#if (eq status 'processed')}}bg-success{{else if (eq status 'pending')}}bg-warning{{else}}bg-danger{{/if}}">
                                         {{#if (eq status 'processed')}}已处理{{else if (eq status 'pending')}}待处理{{else}}处理失败{{/if}}
                                     </span>
+                                    {{#if processingTime}}
+                                        <div class="text-muted small">耗时: {{processingTime}}ms</div>
+                                    {{/if}}
                                 </td>
                                 <td>
                                     <div class="btn-group btn-group-sm">
-                                        <button class="btn btn-outline-primary" onclick="viewMessage('{{id}}')">
+                                        <button class="btn btn-outline-primary" onclick="viewMessage('{{id}}')" title="查看详情">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button class="btn btn-outline-success" onclick="reprocessMessage('{{id}}')">
+                                        <button class="btn btn-outline-success" onclick="reprocessMessage('{{id}}')" title="重新处理">
                                             <i class="fas fa-redo"></i>
                                         </button>
+                                        <button class="btn btn-outline-info" onclick="createTaskFromMessage('{{id}}')" title="创建任务">
+                                            <i class="fas fa-plus"></i>
+                                        </button>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" onclick="classifyMessage('{{id}}')">
+                                                    <i class="fas fa-tags me-2"></i>AI分类
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="viewMessageThread('{{id}}')">
+                                                    <i class="fas fa-comments me-2"></i>查看对话
+                                                </a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteMessage('{{id}}')">
+                                                    <i class="fas fa-trash me-2"></i>删除
+                                                </a></li>
+                                            </ul>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
                             {{/each}}
                         {{else}}
                             <tr>
-                                <td colspan="7" class="text-center py-5">
+                                <td colspan="8" class="text-center py-5">
                                     <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
                                     <p class="text-muted">暂无消息数据</p>
                                 </td>
@@ -225,42 +314,562 @@
             </div>
         </div>
     </div>
+
+    <!-- 分页 -->
+    {{#if pagination}}
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="text-muted">
+            显示 {{pagination.start}} - {{pagination.end}} 条，共 {{pagination.total}} 条
+        </div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {{#if pagination.hasPrev}}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{pagination.prevPage}}">上一页</a>
+                    </li>
+                {{/if}}
+                
+                {{#each pagination.pages}}
+                    <li class="page-item {{#if current}}active{{/if}}">
+                        <a class="page-link" href="?page={{page}}">{{page}}</a>
+                    </li>
+                {{/each}}
+                
+                {{#if pagination.hasNext}}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{pagination.nextPage}}">下一页</a>
+                    </li>
+                {{/if}}
+            </ul>
+        </nav>
+    </div>
+    {{/if}}
+</div>
+
+<!-- 消息详情模态框 -->
+<div class="modal fade" id="messageDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-envelope me-2"></i>消息详情
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="messageDetailContent">
+                    <!-- 动态加载消息详情 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                <button type="button" class="btn btn-primary" onclick="reprocessCurrentMessage()">重新处理</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 创建任务模态框 -->
+<div class="modal fade" id="createTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>创建任务
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createTaskForm">
+                    <input type="hidden" name="messageId" id="taskMessageId">
+                    <div class="mb-3">
+                        <label class="form-label">任务标题 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">任务描述</label>
+                        <textarea class="form-control" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">优先级</label>
+                                <select class="form-select" name="priority">
+                                    <option value="low">低</option>
+                                    <option value="medium" selected>中</option>
+                                    <option value="high">高</option>
+                                    <option value="urgent">紧急</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">分类</label>
+                                <select class="form-select" name="category">
+                                    <option value="complaint">投诉</option>
+                                    <option value="inquiry">咨询</option>
+                                    <option value="support">技术支持</option>
+                                    <option value="feedback">反馈</option>
+                                    <option value="other">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">截止时间</label>
+                        <input type="datetime-local" class="form-control" name="dueDate">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitCreateTask()">创建任务</button>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
+let currentMessageId = null;
+let selectedMessages = new Set();
+
+// 刷新消息列表
 function refreshMessages() {
     location.reload();
 }
 
+// 导出消息
 function exportMessages() {
-    alert('导出消息功能正在开发中...');
+    const filters = getFilters();
+    const queryString = new URLSearchParams(filters).toString();
+    window.open(`/api/messages/export?${queryString}`, '_blank');
 }
 
-function viewMessage(messageId) {
-    alert('查看消息详情功能正在开发中...');
+// 显示/隐藏批量操作
+function showBulkActions() {
+    const card = document.getElementById('bulkActionsCard');
+    card.style.display = card.style.display === 'none' ? 'block' : 'none';
 }
 
-function reprocessMessage(messageId) {
-    if (confirm('确定要重新处理这条消息吗？')) {
-        alert('重新处理消息功能正在开发中...');
+// 获取当前筛选条件
+function getFilters() {
+    return {
+        platform: document.getElementById('platformFilter').value,
+        status: document.getElementById('statusFilter').value,
+        classification: document.getElementById('classificationFilter').value,
+        date: document.getElementById('dateFilter').value,
+        search: document.getElementById('searchInput').value
+    };
+}
+
+// 清除筛选条件
+function clearFilters() {
+    document.getElementById('platformFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('classificationFilter').value = '';
+    document.getElementById('dateFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    filterMessages();
+}
+
+// 切换消息内容显示
+function toggleMessageContent(button) {
+    const preview = button.parentElement.querySelector('.message-preview');
+    const full = button.parentElement.querySelector('.message-full');
+    const icon = button.querySelector('i');
+    
+    if (full.style.display === 'none') {
+        preview.style.display = 'none';
+        full.style.display = 'block';
+        icon.className = 'fas fa-compress-alt';
+    } else {
+        preview.style.display = 'block';
+        full.style.display = 'none';
+        icon.className = 'fas fa-expand-alt';
     }
+}
+
+// 查看消息详情
+async function viewMessage(messageId) {
+    try {
+        const response = await fetch(`/api/messages/${messageId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const message = result.data.message;
+            
+            const content = `
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">消息内容</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <strong>发送者:</strong> ${message.senderName} (${message.senderId})
+                                </div>
+                                <div class="mb-3">
+                                    <strong>平台:</strong> 
+                                    <span class="badge bg-info">${message.platform}</span>
+                                </div>
+                                <div class="mb-3">
+                                    <strong>时间:</strong> ${new Date(message.timestamp).toLocaleString()}
+                                </div>
+                                <div class="mb-3">
+                                    <strong>内容:</strong>
+                                    <div class="border rounded p-3 mt-2">${message.content}</div>
+                                </div>
+                                ${message.mediaUrl ? `
+                                    <div class="mb-3">
+                                        <strong>媒体文件:</strong>
+                                        <a href="${message.mediaUrl}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-external-link-alt me-1"></i>查看
+                                        </a>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">处理信息</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <strong>状态:</strong> 
+                                    <span class="badge bg-${message.status === 'processed' ? 'success' : 'warning'}">${message.status === 'processed' ? '已处理' : '待处理'}</span>
+                                </div>
+                                ${message.classification ? `
+                                    <div class="mb-2">
+                                        <strong>分类:</strong> 
+                                        <span class="badge bg-primary">${message.classification}</span>
+                                    </div>
+                                ` : ''}
+                                ${message.confidence ? `
+                                    <div class="mb-2">
+                                        <strong>置信度:</strong> ${message.confidence}%
+                                    </div>
+                                ` : ''}
+                                ${message.processingTime ? `
+                                    <div class="mb-2">
+                                        <strong>处理耗时:</strong> ${message.processingTime}ms
+                                    </div>
+                                ` : ''}
+                                <div class="mb-2">
+                                    <strong>接收时间:</strong> ${new Date(message.receivedAt).toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        ${message.tasks && message.tasks.length > 0 ? `
+                            <div class="card mt-3">
+                                <div class="card-header">
+                                    <h6 class="card-title mb-0">关联任务</h6>
+                                </div>
+                                <div class="card-body">
+                                    ${message.tasks.map(task => `
+                                        <div class="mb-2">
+                                            <a href="/tasks/${task.id}" class="text-decoration-none">
+                                                ${task.title}
+                                            </a>
+                                            <span class="badge bg-${task.status === 'completed' ? 'success' : 'warning'} ms-2">
+                                                ${task.status}
+                                            </span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('messageDetailContent').innerHTML = content;
+            currentMessageId = messageId;
+            new bootstrap.Modal(document.getElementById('messageDetailModal')).show();
+        } else {
+            showAlert('danger', '获取消息详情失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 重新处理消息
+async function reprocessMessage(messageId) {
+    try {
+        const response = await fetch(`/api/messages/${messageId}/reprocess`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', '消息重新处理成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '重新处理失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 重新处理当前消息
+function reprocessCurrentMessage() {
+    if (currentMessageId) {
+        reprocessMessage(currentMessageId);
+        bootstrap.Modal.getInstance(document.getElementById('messageDetailModal')).hide();
+    }
+}
+
+// AI分类消息
+async function classifyMessage(messageId) {
+    try {
+        const response = await fetch(`/api/messages/${messageId}/classify`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                aiModel: 'gpt-4',
+                forceReClassify: true
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', `消息分类成功: ${result.data.classification.category}`);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '分类失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 创建任务
+function createTaskFromMessage(messageId) {
+    document.getElementById('taskMessageId').value = messageId;
+    document.getElementById('createTaskForm').reset();
+    document.getElementById('taskMessageId').value = messageId; // 重新设置，因为reset会清空
+    new bootstrap.Modal(document.getElementById('createTaskModal')).show();
+}
+
+// 提交创建任务
+async function submitCreateTask() {
+    const form = document.getElementById('createTaskForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    try {
+        const response = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('createTaskModal')).hide();
+            showAlert('success', '任务创建成功！');
+        } else {
+            showAlert('danger', result.message || '创建任务失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 查看消息对话
+function viewMessageThread(messageId) {
+    // 实现查看完整对话的功能
+    window.open(`/messages/${messageId}/thread`, '_blank');
+}
+
+// 删除消息
+async function deleteMessage(messageId) {
+    if (!confirm('确定要删除这条消息吗？')) return;
+    
+    try {
+        const response = await fetch(`/api/messages/${messageId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', '消息删除成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '删除失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 批量操作
+function bulkReprocess() {
+    if (selectedMessages.size === 0) {
+        showAlert('warning', '请先选择要处理的消息');
+        return;
+    }
+    
+    if (confirm(`确定要重新处理选中的 ${selectedMessages.size} 条消息吗？`)) {
+        bulkAction('reprocess');
+    }
+}
+
+function bulkClassify() {
+    if (selectedMessages.size === 0) {
+        showAlert('warning', '请先选择要分类的消息');
+        return;
+    }
+    
+    if (confirm(`确定要对选中的 ${selectedMessages.size} 条消息进行AI分类吗？`)) {
+        bulkAction('classify');
+    }
+}
+
+function bulkCreateTasks() {
+    if (selectedMessages.size === 0) {
+        showAlert('warning', '请先选择要创建任务的消息');
+        return;
+    }
+    
+    const title = prompt('请输入任务标题:');
+    if (!title) return;
+    
+    bulkAction('create_task', { title });
+}
+
+function bulkDelete() {
+    if (selectedMessages.size === 0) {
+        showAlert('warning', '请先选择要删除的消息');
+        return;
+    }
+    
+    if (confirm(`确定要删除选中的 ${selectedMessages.size} 条消息吗？此操作不可恢复！`)) {
+        bulkAction('delete');
+    }
+}
+
+async function bulkAction(action, params = {}) {
+    try {
+        const response = await fetch('/api/messages/bulk', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messageIds: Array.from(selectedMessages),
+                action: action,
+                ...params
+            })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', `批量操作成功！处理了 ${result.data.processed} 条消息`);
+            selectedMessages.clear();
+            updateSelectedCount();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '批量操作失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 更新选中计数
+function updateSelectedCount() {
+    document.getElementById('selectedCount').textContent = `已选择 ${selectedMessages.size} 条`;
+}
+
+// 显示提示消息
+function showAlert(type, message) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.messages-container');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) alert.remove();
+    }, 5000);
 }
 
 // 筛选和搜索功能
 document.addEventListener('DOMContentLoaded', function() {
     const platformFilter = document.getElementById('platformFilter');
     const statusFilter = document.getElementById('statusFilter');
+    const classificationFilter = document.getElementById('classificationFilter');
     const dateFilter = document.getElementById('dateFilter');
     const searchInput = document.getElementById('searchInput');
     
-    [platformFilter, statusFilter, dateFilter, searchInput].forEach(element => {
+    [platformFilter, statusFilter, classificationFilter, dateFilter, searchInput].forEach(element => {
         element.addEventListener('change', filterMessages);
         element.addEventListener('input', filterMessages);
+    });
+    
+    // 选择框事件
+    document.getElementById('selectAll').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.message-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+            if (this.checked) {
+                selectedMessages.add(checkbox.value);
+            } else {
+                selectedMessages.delete(checkbox.value);
+            }
+        });
+        updateSelectedCount();
+    });
+    
+    document.getElementById('selectAllMessages').addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.message-checkbox');
+        checkboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+            if (this.checked) {
+                selectedMessages.add(checkbox.value);
+            } else {
+                selectedMessages.delete(checkbox.value);
+            }
+        });
+        updateSelectedCount();
+    });
+    
+    // 单个消息选择
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('message-checkbox')) {
+            if (e.target.checked) {
+                selectedMessages.add(e.target.value);
+            } else {
+                selectedMessages.delete(e.target.value);
+            }
+            updateSelectedCount();
+        }
     });
     
     function filterMessages() {
         const platform = platformFilter.value.toLowerCase();
         const status = statusFilter.value.toLowerCase();
+        const classification = classificationFilter.value.toLowerCase();
         const date = dateFilter.value;
         const search = searchInput.value.toLowerCase();
         
@@ -270,9 +879,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const text = row.textContent.toLowerCase();
             const platformMatch = !platform || text.includes(platform);
             const statusMatch = !status || text.includes(status);
+            const classificationMatch = !classification || text.includes(classification);
             const searchMatch = !search || text.includes(search);
             
-            row.style.display = (platformMatch && statusMatch && searchMatch) ? '' : 'none';
+            row.style.display = (platformMatch && statusMatch && classificationMatch && searchMatch) ? '' : 'none';
         });
     }
 });
@@ -385,6 +995,10 @@ document.addEventListener('DOMContentLoaded', function() {
 }
 
 .btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.pagination-sm .page-link {
     padding: 0.25rem 0.5rem;
 }
 </style> 

@@ -2,23 +2,19 @@ const axios = require('axios');
 const logger = require('./logger');
 
 class APIClient {
-    constructor() {
-        this.baseURL = process.env.GATEWAY_URL || 'http://gateway:3000';
-        this.timeout = 10000;
-        
+    constructor(baseURL = 'http://gateway:3000', timeout = 30000) {
         this.client = axios.create({
-            baseURL: this.baseURL,
-            timeout: this.timeout,
+            baseURL,
+            timeout,
             headers: {
-                'Content-Type': 'application/json',
-                'User-Agent': 'Octopus-Admin-Panel/1.0.0'
+                'Content-Type': 'application/json'
             }
         });
 
         // 请求拦截器
         this.client.interceptors.request.use(
             (config) => {
-                logger.debug('API Request', {
+                logger.debug('API Request:', {
                     method: config.method,
                     url: config.url,
                     data: config.data
@@ -26,7 +22,7 @@ class APIClient {
                 return config;
             },
             (error) => {
-                logger.error('API Request Error', error);
+                logger.error('API Request Error:', error);
                 return Promise.reject(error);
             }
         );
@@ -34,38 +30,78 @@ class APIClient {
         // 响应拦截器
         this.client.interceptors.response.use(
             (response) => {
-                logger.debug('API Response', {
+                logger.debug('API Response:', {
                     status: response.status,
-                    url: response.config.url,
                     data: response.data
                 });
                 return response;
             },
             (error) => {
-                logger.error('API Response Error', {
+                logger.error('API Response Error:', {
                     status: error.response?.status,
-                    url: error.config?.url,
-                    message: error.message,
-                    data: error.response?.data
+                    data: error.response?.data,
+                    message: error.message
                 });
                 return Promise.reject(error);
             }
         );
     }
 
-    // 设置认证token
     setAuthToken(token) {
-        if (token) {
-            this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-        } else {
-            delete this.client.defaults.headers.common['Authorization'];
+        this.client.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    }
+
+    handleError(error) {
+        const message = error.response?.data?.message || error.message || 'Unknown error';
+        const status = error.response?.status || 500;
+        return { error: message, status };
+    }
+
+    // ===============================
+    // 认证相关API
+    // ===============================
+    async login(credentials) {
+        try {
+            const response = await this.client.post('/api/auth/login', credentials);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
         }
     }
 
-    // 用户相关API
-    async getUsers() {
+    async register(userData) {
         try {
-            const response = await this.client.get('/api/users');
+            const response = await this.client.post('/api/auth/register', userData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async verifyToken() {
+        try {
+            const response = await this.client.get('/api/auth/verify');
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // ===============================
+    // 用户管理API
+    // ===============================
+    async getUsers(params = {}) {
+        try {
+            const response = await this.client.get('/api/users', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getUserById(userId) {
+        try {
+            const response = await this.client.get(`/api/users/${userId}`);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
@@ -99,10 +135,147 @@ class APIClient {
         }
     }
 
-    // Bot相关API
-    async getBots() {
+    // ===============================
+    // 消息管理API
+    // ===============================
+    async getMessages(params = {}) {
         try {
-            const response = await this.client.get('/api/bots');
+            const response = await this.client.get('/api/messages', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getMessageById(messageId) {
+        try {
+            const response = await this.client.get(`/api/messages/${messageId}`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async processMessage(messageData) {
+        try {
+            const response = await this.client.post('/api/messages/process', messageData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async reprocessMessage(messageId) {
+        try {
+            const response = await this.client.post(`/api/messages/${messageId}/reprocess`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async bulkProcessMessages(messageIds, action) {
+        try {
+            const response = await this.client.post('/api/messages/bulk', {
+                messageIds,
+                action
+            });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async classifyMessage(messageId, options = {}) {
+        try {
+            const response = await this.client.post(`/api/messages/${messageId}/classify`, options);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // ===============================
+    // 任务管理API
+    // ===============================
+    async getTasks(params = {}) {
+        try {
+            const response = await this.client.get('/api/tasks', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getTaskById(taskId) {
+        try {
+            const response = await this.client.get(`/api/tasks/${taskId}`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async createTask(taskData) {
+        try {
+            const response = await this.client.post('/api/tasks', taskData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async updateTask(taskId, taskData) {
+        try {
+            const response = await this.client.put(`/api/tasks/${taskId}`, taskData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async deleteTask(taskId) {
+        try {
+            const response = await this.client.delete(`/api/tasks/${taskId}`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async assignTask(taskId, assigneeId) {
+        try {
+            const response = await this.client.post(`/api/tasks/${taskId}/assign`, { assigneeId });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async syncTask(taskId, integrationIds) {
+        try {
+            const response = await this.client.post(`/api/tasks/${taskId}/sync`, { integrationIds });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // ===============================
+    // Bot管理API
+    // ===============================
+    async getBots(params = {}) {
+        try {
+            const response = await this.client.get('/api/bots', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getBotById(botId) {
+        try {
+            const response = await this.client.get(`/api/bots/${botId}`);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
@@ -136,48 +309,57 @@ class APIClient {
         }
     }
 
-    // 消息相关API
-    async getMessages(params = {}) {
+    async getBotStatus(botId) {
         try {
-            const response = await this.client.get('/api/messages', { params });
+            const response = await this.client.get(`/api/bots/${botId}/status`);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    // 任务相关API
-    async getTasks(params = {}) {
+    async startBot(botId) {
         try {
-            const response = await this.client.get('/api/tasks', { params });
+            const response = await this.client.post(`/api/bots/${botId}/start`);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    async createTask(taskData) {
+    async stopBot(botId) {
         try {
-            const response = await this.client.post('/api/tasks', taskData);
+            const response = await this.client.post(`/api/bots/${botId}/stop`);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    async updateTask(taskId, taskData) {
+    async getBotsByMerchant(merchantId) {
         try {
-            const response = await this.client.put(`/api/tasks/${taskId}`, taskData);
+            const response = await this.client.get(`/api/bots/by-merchant/${merchantId}`);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
-    // 商户相关API
-    async getMerchants() {
+    // ===============================
+    // 商户管理API
+    // ===============================
+    async getMerchants(params = {}) {
         try {
-            const response = await this.client.get('/api/merchants');
+            const response = await this.client.get('/api/merchants', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getMerchantById(merchantId) {
+        try {
+            const response = await this.client.get(`/api/merchants/${merchantId}`);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
@@ -193,164 +375,211 @@ class APIClient {
         }
     }
 
-    // 认证相关API
-    async login(credentials) {
+    async updateMerchant(merchantId, merchantData) {
         try {
-            const response = await this.client.post('/api/auth/login', credentials);
-            return response.data;
-        } catch (error) {
-            // 如果API调用失败，尝试直接数据库验证（临时方案）
-            if (error.status === 404 || error.status === 500) {
-                return await this.fallbackLogin(credentials);
-            }
-            throw this.handleError(error);
-        }
-    }
-
-    // 备用登录方法（直接验证数据库）
-    async fallbackLogin(credentials) {
-        try {
-            const bcrypt = require('bcryptjs');
-            const { Pool } = require('pg');
-            const logger = require('./logger');
-            
-            logger.info('Fallback login attempt:', { 
-                hasEmail: !!credentials.email, 
-                hasUsername: !!credentials.username,
-                hasPassword: !!credentials.password 
-            });
-            
-            const pool = new Pool({
-                host: process.env.DB_HOST || 'postgres',
-                port: process.env.DB_PORT || 5432,
-                database: process.env.DB_NAME || 'octopus_messenger',
-                user: process.env.DB_USER || 'postgres',
-                password: process.env.DB_PASSWORD || 'Abc123123!'
-            });
-
-            let query;
-            let params;
-
-            if (credentials.email) {
-                query = 'SELECT * FROM users WHERE email = $1 AND status = $2';
-                params = [credentials.email, 'active'];
-            } else {
-                query = 'SELECT * FROM users WHERE username = $1 AND status = $2';
-                params = [credentials.username, 'active'];
-            }
-
-            logger.info('Database query:', { query, params: [params[0], params[1]] });
-
-            const result = await pool.query(query, params);
-            
-            logger.info('Database result:', { rowCount: result.rows.length });
-            
-            if (result.rows.length === 0) {
-                await pool.end();
-                return { success: false, message: '用户不存在或已被禁用' };
-            }
-
-            const user = result.rows[0];
-            
-            logger.info('Found user:', { 
-                id: user.id, 
-                username: user.username, 
-                email: user.email,
-                hasPasswordHash: !!user.password_hash
-            });
-            
-            // 验证密码
-            logger.info('Password comparison data:', { 
-                passwordType: typeof credentials.password,
-                passwordValue: credentials.password,
-                hashType: typeof user.password_hash,
-                hashValue: user.password_hash ? user.password_hash.substring(0, 10) + '...' : 'null'
-            });
-            
-            // 确保参数都是字符串 - 处理数组情况
-            let password = credentials.password;
-            if (Array.isArray(password)) {
-                // 如果是数组，取非空的值
-                password = password.find(p => p && p.trim()) || '';
-            }
-            password = String(password || '');
-            const passwordHash = String(user.password_hash || '');
-            
-            if (!password || !passwordHash) {
-                logger.error('Missing password or hash');
-                await pool.end();
-                return { success: false, message: '密码验证失败' };
-            }
-            
-            const isValidPassword = await bcrypt.compare(password, passwordHash);
-            
-            logger.info('Password validation result:', { isValidPassword });
-            
-            if (!isValidPassword) {
-                await pool.end();
-                return { success: false, message: '密码错误' };
-            }
-
-            // 生成简单的token（实际应用中应该使用JWT）
-            const token = Buffer.from(`${user.id}:${Date.now()}`).toString('base64');
-
-            await pool.end();
-
-            return {
-                success: true,
-                user: {
-                    id: user.id,
-                    username: user.username,
-                    email: user.email,
-                    role: user.role,
-                    displayName: user.display_name || user.username
-                },
-                token: token
-            };
-        } catch (error) {
-            logger.error('Fallback login error:', error);
-            return { success: false, message: '登录失败，请稍后重试: ' + error.message };
-        }
-    }
-
-    async logout() {
-        try {
-            const response = await this.client.post('/api/auth/logout');
+            const response = await this.client.put(`/api/merchants/${merchantId}`, merchantData);
             return response.data;
         } catch (error) {
             throw this.handleError(error);
         }
     }
 
+    async deleteMerchant(merchantId) {
+        try {
+            const response = await this.client.delete(`/api/merchants/${merchantId}`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getMerchantStats(merchantId, params = {}) {
+        try {
+            const response = await this.client.get(`/api/merchants/${merchantId}/stats`, { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getMerchantData(merchantId, params = {}) {
+        try {
+            const response = await this.client.get(`/api/merchants/${merchantId}/data`, { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async createMerchantInviteCode(merchantId, codeData) {
+        try {
+            const response = await this.client.post(`/api/merchants/${merchantId}/invite-codes`, codeData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getMerchantInviteCodes(merchantId) {
+        try {
+            const response = await this.client.get(`/api/merchants/${merchantId}/invite-codes`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // ===============================
+    // AI分类API
+    // ===============================
+    async classifyMessageWithAI(messageData, options = {}) {
+        try {
+            const response = await this.client.post('/api/ai/classify', {
+                message: messageData,
+                options
+            });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getClassificationRules(params = {}) {
+        try {
+            const response = await this.client.get('/api/classifications/rules', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async createClassificationRule(ruleData) {
+        try {
+            const response = await this.client.post('/api/classifications/rules', ruleData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async updateClassificationRule(ruleId, ruleData) {
+        try {
+            const response = await this.client.put(`/api/classifications/rules/${ruleId}`, ruleData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async deleteClassificationRule(ruleId) {
+        try {
+            const response = await this.client.delete(`/api/classifications/rules/${ruleId}`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // ===============================
+    // 统计和分析API
+    // ===============================
+    async getStats(params = {}) {
+        try {
+            const response = await this.client.get('/api/stats', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getDashboardStats() {
+        try {
+            const response = await this.client.get('/api/stats/dashboard');
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getUserAnalytics(params = {}) {
+        try {
+            const response = await this.client.get('/api/user-analytics', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // ===============================
+    // 租户管理API
+    // ===============================
+    async getTenants(params = {}) {
+        try {
+            const response = await this.client.get('/api/tenants', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getTenantById(tenantId) {
+        try {
+            const response = await this.client.get(`/api/tenants/${tenantId}`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async updateTenant(tenantId, tenantData) {
+        try {
+            const response = await this.client.put(`/api/tenants/${tenantId}`, tenantData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // ===============================
+    // 群组管理API
+    // ===============================
+    async getGroups(params = {}) {
+        try {
+            const response = await this.client.get('/api/groups', { params });
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async getGroupById(groupId) {
+        try {
+            const response = await this.client.get(`/api/groups/${groupId}`);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    async updateGroup(groupId, groupData) {
+        try {
+            const response = await this.client.put(`/api/groups/${groupId}`, groupData);
+            return response.data;
+        } catch (error) {
+            throw this.handleError(error);
+        }
+    }
+
+    // ===============================
     // 健康检查
+    // ===============================
     async healthCheck() {
         try {
             const response = await this.client.get('/health');
             return response.data;
         } catch (error) {
-            return { status: 'unhealthy', error: error.message };
+            throw this.handleError(error);
         }
-    }
-
-    // 错误处理
-    handleError(error) {
-        const errorResponse = {
-            message: error.message,
-            status: error.response?.status,
-            data: error.response?.data
-        };
-
-        if (error.response?.status === 401) {
-            errorResponse.message = 'Unauthorized access';
-        } else if (error.response?.status === 403) {
-            errorResponse.message = 'Forbidden access';
-        } else if (error.response?.status === 404) {
-            errorResponse.message = 'Resource not found';
-        } else if (error.response?.status >= 500) {
-            errorResponse.message = 'Internal server error';
-        }
-
-        return errorResponse;
     }
 }
 

@@ -1,0 +1,1189 @@
+{{#if error}}
+<div class="alert alert-danger alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle me-2"></i>{{error}}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{{/if}}
+
+<div class="tasks-container p-4">
+    <!-- 页面标题 -->
+    <div class="page-header mb-5">
+        <div class="row align-items-center">
+            <div class="col">
+                <h1 class="page-title">
+                    <i class="fas fa-tasks me-2"></i>任务管理
+                </h1>
+                <p class="text-muted">管理系统中的所有任务和工作流程</p>
+            </div>
+            <div class="col-auto">
+                <div class="btn-group">
+                    <button type="button" class="btn btn-primary" onclick="showCreateTaskModal()">
+                        <i class="fas fa-plus me-2"></i>创建任务
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="refreshTasks()">
+                        <i class="fas fa-sync-alt me-2"></i>刷新
+                    </button>
+                    <button type="button" class="btn btn-outline-info" onclick="showKanbanView()">
+                        <i class="fas fa-columns me-2"></i>看板视图
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 任务统计 -->
+    <div class="row mb-5">
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-primary">
+                            <i class="fas fa-tasks"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.totalTasks}}</div>
+                            <div class="stats-label">总任务数</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.pendingTasks}}</div>
+                            <div class="stats-label">待处理</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-info">
+                            <i class="fas fa-play"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.inProgressTasks}}</div>
+                            <div class="stats-label">进行中</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="stats-card">
+                <div class="stats-card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="stats-icon bg-success">
+                            <i class="fas fa-check"></i>
+                        </div>
+                        <div class="ms-3">
+                            <div class="stats-number">{{stats.completedTasks}}</div>
+                            <div class="stats-label">已完成</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 筛选和搜索 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label">状态筛选</label>
+                    <select class="form-select" id="statusFilter">
+                        <option value="">全部状态</option>
+                        <option value="pending">待处理</option>
+                        <option value="in_progress">进行中</option>
+                        <option value="completed">已完成</option>
+                        <option value="cancelled">已取消</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">优先级筛选</label>
+                    <select class="form-select" id="priorityFilter">
+                        <option value="">全部优先级</option>
+                        <option value="low">低</option>
+                        <option value="medium">中</option>
+                        <option value="high">高</option>
+                        <option value="urgent">紧急</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">分类筛选</label>
+                    <select class="form-select" id="categoryFilter">
+                        <option value="">全部分类</option>
+                        <option value="complaint">投诉</option>
+                        <option value="inquiry">咨询</option>
+                        <option value="support">技术支持</option>
+                        <option value="feedback">反馈</option>
+                        <option value="other">其他</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">负责人筛选</label>
+                    <select class="form-select" id="assigneeFilter">
+                        <option value="">全部负责人</option>
+                        <option value="admin">Admin User</option>
+                        <option value="user1">User 1</option>
+                        <option value="user2">User 2</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">搜索</label>
+                    <input type="text" class="form-control" placeholder="搜索任务标题或描述..." id="searchInput">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label">&nbsp;</label>
+                    <button class="btn btn-outline-secondary w-100" onclick="clearFilters()">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 任务列表 -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="card-title mb-0">
+                <i class="fas fa-list me-2"></i>任务列表
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>任务信息</th>
+                            <th>优先级</th>
+                            <th>状态</th>
+                            <th>负责人</th>
+                            <th>截止时间</th>
+                            <th>创建时间</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{#if tasks}}
+                            {{#each tasks}}
+                            <tr>
+                                <td>
+                                    <div class="task-info">
+                                        <div class="fw-semibold task-title">{{title}}</div>
+                                        {{#if description}}
+                                            <div class="text-muted small task-description">
+                                                {{#if (gt description.length 100)}}
+                                                    {{substring description 0 100}}...
+                                                {{else}}
+                                                    {{description}}
+                                                {{/if}}
+                                            </div>
+                                        {{/if}}
+                                        {{#if category}}
+                                            <span class="badge bg-secondary mt-1">{{category}}</span>
+                                        {{/if}}
+                                        {{#if messageId}}
+                                            <span class="badge bg-info mt-1">
+                                                <i class="fas fa-envelope me-1"></i>关联消息
+                                            </span>
+                                        {{/if}}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge priority-{{priority}} bg-{{#if (eq priority 'urgent')}}danger{{else if (eq priority 'high')}}warning{{else if (eq priority 'medium')}}info{{else}}secondary{{/if}}">
+                                        {{#if (eq priority 'urgent')}}紧急{{else if (eq priority 'high')}}高{{else if (eq priority 'medium')}}中{{else}}低{{/if}}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{{#if (eq status 'completed')}}success{{else if (eq status 'in_progress')}}info{{else if (eq status 'pending')}}warning{{else}}secondary{{/if}}">
+                                        {{#if (eq status 'completed')}}已完成{{else if (eq status 'in_progress')}}进行中{{else if (eq status 'pending')}}待处理{{else}}已取消{{/if}}
+                                    </span>
+                                </td>
+                                <td>
+                                    {{#if assignee}}
+                                        <div class="d-flex align-items-center">
+                                            <div class="user-avatar me-2">
+                                                <div class="avatar-circle-sm">
+                                                    {{substring assignee.name 0 1}}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <div class="fw-semibold">{{assignee.name}}</div>
+                                                <div class="text-muted small">{{assignee.email}}</div>
+                                            </div>
+                                        </div>
+                                    {{else}}
+                                        <span class="text-muted">未分配</span>
+                                        <button class="btn btn-link btn-sm p-0 ms-1" onclick="assignTask('{{id}}')">
+                                            <i class="fas fa-user-plus"></i>
+                                        </button>
+                                    {{/if}}
+                                </td>
+                                <td>
+                                    {{#if dueDate}}
+                                        <div class="text-nowrap">
+                                            <div class="fw-semibold {{#if isOverdue}}text-danger{{else if isDueSoon}}text-warning{{/if}}">
+                                                {{formatDate dueDate}}
+                                            </div>
+                                            <div class="text-muted small">{{formatTime dueDate}}</div>
+                                            {{#if isOverdue}}
+                                                <span class="badge bg-danger">已逾期</span>
+                                            {{else if isDueSoon}}
+                                                <span class="badge bg-warning">即将到期</span>
+                                            {{/if}}
+                                        </div>
+                                    {{else}}
+                                        <span class="text-muted">未设置</span>
+                                    {{/if}}
+                                </td>
+                                <td>
+                                    <div class="text-nowrap">
+                                        <div class="fw-semibold">{{formatDate createdAt}}</div>
+                                        <div class="text-muted small">{{formatTime createdAt}}</div>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary" onclick="viewTask('{{id}}')" title="查看详情">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success" onclick="editTask('{{id}}')" title="编辑">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {{#if (eq status 'pending')}}
+                                            <button class="btn btn-outline-info" onclick="startTask('{{id}}')" title="开始任务">
+                                                <i class="fas fa-play"></i>
+                                            </button>
+                                        {{else if (eq status 'in_progress')}}
+                                            <button class="btn btn-outline-success" onclick="completeTask('{{id}}')" title="完成任务">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        {{/if}}
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu">
+                                                <li><a class="dropdown-item" href="#" onclick="assignTask('{{id}}')">
+                                                    <i class="fas fa-user-plus me-2"></i>分配任务
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="duplicateTask('{{id}}')">
+                                                    <i class="fas fa-copy me-2"></i>复制任务
+                                                </a></li>
+                                                <li><a class="dropdown-item" href="#" onclick="syncTask('{{id}}')">
+                                                    <i class="fas fa-sync me-2"></i>同步到CRM
+                                                </a></li>
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteTask('{{id}}')">
+                                                    <i class="fas fa-trash me-2"></i>删除
+                                                </a></li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {{/each}}
+                        {{else}}
+                            <tr>
+                                <td colspan="7" class="text-center py-5">
+                                    <i class="fas fa-tasks fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">暂无任务数据</p>
+                                    <button class="btn btn-primary" onclick="showCreateTaskModal()">
+                                        <i class="fas fa-plus me-2"></i>创建第一个任务
+                                    </button>
+                                </td>
+                            </tr>
+                        {{/if}}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分页 -->
+    {{#if pagination}}
+    <div class="d-flex justify-content-between align-items-center mt-4">
+        <div class="text-muted">
+            显示 {{pagination.start}} - {{pagination.end}} 条，共 {{pagination.total}} 条
+        </div>
+        <nav>
+            <ul class="pagination pagination-sm mb-0">
+                {{#if pagination.hasPrev}}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{pagination.prevPage}}">上一页</a>
+                    </li>
+                {{/if}}
+                
+                {{#each pagination.pages}}
+                    <li class="page-item {{#if current}}active{{/if}}">
+                        <a class="page-link" href="?page={{page}}">{{page}}</a>
+                    </li>
+                {{/each}}
+                
+                {{#if pagination.hasNext}}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{pagination.nextPage}}">下一页</a>
+                    </li>
+                {{/if}}
+            </ul>
+        </nav>
+    </div>
+    {{/if}}
+</div>
+
+<!-- 创建任务模态框 -->
+<div class="modal fade" id="createTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>创建新任务
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="createTaskForm">
+                    <div class="mb-3">
+                        <label class="form-label">任务标题 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="title" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">任务描述</label>
+                        <textarea class="form-control" name="description" rows="4" placeholder="详细描述任务内容和要求"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">优先级</label>
+                                <select class="form-select" name="priority">
+                                    <option value="low">低</option>
+                                    <option value="medium" selected>中</option>
+                                    <option value="high">高</option>
+                                    <option value="urgent">紧急</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">分类</label>
+                                <select class="form-select" name="category">
+                                    <option value="complaint">投诉</option>
+                                    <option value="inquiry">咨询</option>
+                                    <option value="support">技术支持</option>
+                                    <option value="feedback">反馈</option>
+                                    <option value="other">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">负责人</label>
+                                <select class="form-select" name="assignedTo">
+                                    <option value="">请选择负责人</option>
+                                    <option value="admin">Admin User</option>
+                                    <option value="user1">User 1</option>
+                                    <option value="user2">User 2</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">截止时间</label>
+                                <input type="datetime-local" class="form-control" name="dueDate">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">关联消息ID</label>
+                        <input type="text" class="form-control" name="messageId" placeholder="可选：关联的消息ID">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">标签</label>
+                        <input type="text" class="form-control" name="tags" placeholder="用逗号分隔多个标签">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="createTask()">
+                    <i class="fas fa-save me-2"></i>创建任务
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑任务模态框 -->
+<div class="modal fade" id="editTaskModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-edit me-2"></i>编辑任务
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editTaskForm">
+                    <input type="hidden" name="taskId" id="editTaskId">
+                    <div class="mb-3">
+                        <label class="form-label">任务标题 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" name="title" id="editTaskTitle" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">任务描述</label>
+                        <textarea class="form-control" name="description" id="editTaskDescription" rows="4"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">状态</label>
+                                <select class="form-select" name="status" id="editTaskStatus">
+                                    <option value="pending">待处理</option>
+                                    <option value="in_progress">进行中</option>
+                                    <option value="completed">已完成</option>
+                                    <option value="cancelled">已取消</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">优先级</label>
+                                <select class="form-select" name="priority" id="editTaskPriority">
+                                    <option value="low">低</option>
+                                    <option value="medium">中</option>
+                                    <option value="high">高</option>
+                                    <option value="urgent">紧急</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">分类</label>
+                                <select class="form-select" name="category" id="editTaskCategory">
+                                    <option value="complaint">投诉</option>
+                                    <option value="inquiry">咨询</option>
+                                    <option value="support">技术支持</option>
+                                    <option value="feedback">反馈</option>
+                                    <option value="other">其他</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">负责人</label>
+                                <select class="form-select" name="assignedTo" id="editTaskAssignedTo">
+                                    <option value="">请选择负责人</option>
+                                    <option value="admin">Admin User</option>
+                                    <option value="user1">User 1</option>
+                                    <option value="user2">User 2</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">截止时间</label>
+                                <input type="datetime-local" class="form-control" name="dueDate" id="editTaskDueDate">
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="updateTask()">
+                    <i class="fas fa-save me-2"></i>保存更改
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 任务详情模态框 -->
+<div class="modal fade" id="taskDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-info-circle me-2"></i>任务详情
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="taskDetailContent">
+                    <!-- 动态加载任务详情 -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 分配任务模态框 -->
+<div class="modal fade" id="assignTaskModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-user-plus me-2"></i>分配任务
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="assignTaskForm">
+                    <input type="hidden" name="taskId" id="assignTaskId">
+                    <div class="mb-3">
+                        <label class="form-label">选择负责人 <span class="text-danger">*</span></label>
+                        <select class="form-select" name="assigneeId" required>
+                            <option value="">请选择负责人</option>
+                            <option value="admin">Admin User</option>
+                            <option value="user1">User 1</option>
+                            <option value="user2">User 2</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">备注</label>
+                        <textarea class="form-control" name="note" rows="3" placeholder="分配说明或特殊要求"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitAssignTask()">
+                    <i class="fas fa-check me-2"></i>分配任务
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 刷新任务列表
+function refreshTasks() {
+    location.reload();
+}
+
+// 显示创建任务模态框
+function showCreateTaskModal() {
+    document.getElementById('createTaskForm').reset();
+    new bootstrap.Modal(document.getElementById('createTaskModal')).show();
+}
+
+// 创建任务
+async function createTask() {
+    const form = document.getElementById('createTaskForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    
+    // 处理标签
+    if (data.tags) {
+        data.tags = data.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+    }
+    
+    try {
+        const response = await fetch('/api/tasks', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('createTaskModal')).hide();
+            showAlert('success', '任务创建成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '创建失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 编辑任务
+async function editTask(taskId) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const task = result.data.task;
+            
+            // 填充表单
+            document.getElementById('editTaskId').value = task.id;
+            document.getElementById('editTaskTitle').value = task.title;
+            document.getElementById('editTaskDescription').value = task.description || '';
+            document.getElementById('editTaskStatus').value = task.status;
+            document.getElementById('editTaskPriority').value = task.priority;
+            document.getElementById('editTaskCategory').value = task.category || '';
+            document.getElementById('editTaskAssignedTo').value = task.assignedTo || '';
+            
+            if (task.dueDate) {
+                const dueDate = new Date(task.dueDate);
+                document.getElementById('editTaskDueDate').value = dueDate.toISOString().slice(0, 16);
+            }
+            
+            new bootstrap.Modal(document.getElementById('editTaskModal')).show();
+        } else {
+            showAlert('danger', '获取任务信息失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 更新任务
+async function updateTask() {
+    const form = document.getElementById('editTaskForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    const taskId = data.taskId;
+    delete data.taskId;
+    
+    try {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editTaskModal')).hide();
+            showAlert('success', '任务更新成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '更新失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 查看任务详情
+async function viewTask(taskId) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const task = result.data.task;
+            
+            const content = `
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">任务信息</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <strong>标题:</strong> ${task.title}
+                                </div>
+                                <div class="mb-3">
+                                    <strong>描述:</strong>
+                                    <div class="border rounded p-3 mt-2">${task.description || '无描述'}</div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-2">
+                                            <strong>状态:</strong> 
+                                            <span class="badge bg-${task.status === 'completed' ? 'success' : 'warning'}">${task.status}</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>优先级:</strong> 
+                                            <span class="badge bg-${task.priority === 'urgent' ? 'danger' : 'info'}">${task.priority}</span>
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>分类:</strong> ${task.category || '未分类'}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-2">
+                                            <strong>负责人:</strong> ${task.assignee ? task.assignee.name : '未分配'}
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>创建时间:</strong> ${new Date(task.createdAt).toLocaleString()}
+                                        </div>
+                                        <div class="mb-2">
+                                            <strong>截止时间:</strong> ${task.dueDate ? new Date(task.dueDate).toLocaleString() : '未设置'}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">操作历史</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="timeline">
+                                    <div class="timeline-item">
+                                        <div class="timeline-marker bg-primary"></div>
+                                        <div class="timeline-content">
+                                            <h6>任务创建</h6>
+                                            <p class="text-muted small">${new Date(task.createdAt).toLocaleString()}</p>
+                                        </div>
+                                    </div>
+                                    ${task.assignee ? `
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker bg-info"></div>
+                                            <div class="timeline-content">
+                                                <h6>任务分配</h6>
+                                                <p class="text-muted small">分配给 ${task.assignee.name}</p>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                    ${task.status === 'completed' ? `
+                                        <div class="timeline-item">
+                                            <div class="timeline-marker bg-success"></div>
+                                            <div class="timeline-content">
+                                                <h6>任务完成</h6>
+                                                <p class="text-muted small">${task.completedAt ? new Date(task.completedAt).toLocaleString() : ''}</p>
+                                            </div>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('taskDetailContent').innerHTML = content;
+            new bootstrap.Modal(document.getElementById('taskDetailModal')).show();
+        } else {
+            showAlert('danger', '获取任务详情失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 开始任务
+async function startTask(taskId) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ status: 'in_progress' })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', '任务已开始！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '操作失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 完成任务
+async function completeTask(taskId) {
+    if (confirm('确定要完成这个任务吗？')) {
+        try {
+            const response = await fetch(`/api/tasks/${taskId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: 'completed' })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert('success', '任务已完成！');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                showAlert('danger', result.message || '操作失败');
+            }
+        } catch (error) {
+            showAlert('danger', '网络错误，请稍后重试');
+        }
+    }
+}
+
+// 分配任务
+function assignTask(taskId) {
+    document.getElementById('assignTaskId').value = taskId;
+    document.getElementById('assignTaskForm').reset();
+    document.getElementById('assignTaskId').value = taskId; // 重新设置
+    new bootstrap.Modal(document.getElementById('assignTaskModal')).show();
+}
+
+// 提交分配任务
+async function submitAssignTask() {
+    const form = document.getElementById('assignTaskForm');
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData);
+    const taskId = data.taskId;
+    
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/assign`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ assigneeId: data.assigneeId })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('assignTaskModal')).hide();
+            showAlert('success', '任务分配成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '分配失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 复制任务
+async function duplicateTask(taskId) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const task = result.data.task;
+            
+            // 填充创建表单
+            document.getElementById('createTaskForm').reset();
+            document.querySelector('#createTaskForm [name="title"]').value = task.title + ' (副本)';
+            document.querySelector('#createTaskForm [name="description"]').value = task.description || '';
+            document.querySelector('#createTaskForm [name="priority"]').value = task.priority;
+            document.querySelector('#createTaskForm [name="category"]').value = task.category || '';
+            
+            new bootstrap.Modal(document.getElementById('createTaskModal')).show();
+        } else {
+            showAlert('danger', '获取任务信息失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 同步任务到CRM
+async function syncTask(taskId) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/sync`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ integrationIds: ['crm'] })
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', '任务同步成功！');
+        } else {
+            showAlert('danger', result.message || '同步失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 删除任务
+async function deleteTask(taskId) {
+    if (!confirm('确定要删除这个任务吗？此操作不可恢复！')) return;
+    
+    try {
+        const response = await fetch(`/api/tasks/${taskId}`, {
+            method: 'DELETE'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            showAlert('success', '任务删除成功！');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert('danger', result.message || '删除失败');
+        }
+    } catch (error) {
+        showAlert('danger', '网络错误，请稍后重试');
+    }
+}
+
+// 显示看板视图
+function showKanbanView() {
+    window.location.href = '/tasks/kanban';
+}
+
+// 清除筛选条件
+function clearFilters() {
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('priorityFilter').value = '';
+    document.getElementById('categoryFilter').value = '';
+    document.getElementById('assigneeFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    filterTasks();
+}
+
+// 显示提示消息
+function showAlert(type, message) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    
+    const container = document.querySelector('.tasks-container');
+    container.insertAdjacentHTML('afterbegin', alertHtml);
+    
+    setTimeout(() => {
+        const alert = container.querySelector('.alert');
+        if (alert) alert.remove();
+    }, 5000);
+}
+
+// 筛选和搜索功能
+document.addEventListener('DOMContentLoaded', function() {
+    const statusFilter = document.getElementById('statusFilter');
+    const priorityFilter = document.getElementById('priorityFilter');
+    const categoryFilter = document.getElementById('categoryFilter');
+    const assigneeFilter = document.getElementById('assigneeFilter');
+    const searchInput = document.getElementById('searchInput');
+    
+    [statusFilter, priorityFilter, categoryFilter, assigneeFilter, searchInput].forEach(element => {
+        element.addEventListener('change', filterTasks);
+        element.addEventListener('input', filterTasks);
+    });
+    
+    function filterTasks() {
+        const status = statusFilter.value.toLowerCase();
+        const priority = priorityFilter.value.toLowerCase();
+        const category = categoryFilter.value.toLowerCase();
+        const assignee = assigneeFilter.value.toLowerCase();
+        const search = searchInput.value.toLowerCase();
+        
+        const rows = document.querySelectorAll('tbody tr');
+        
+        rows.forEach(row => {
+            const text = row.textContent.toLowerCase();
+            const statusMatch = !status || text.includes(status);
+            const priorityMatch = !priority || text.includes(priority);
+            const categoryMatch = !category || text.includes(category);
+            const assigneeMatch = !assignee || text.includes(assignee);
+            const searchMatch = !search || text.includes(search);
+            
+            row.style.display = (statusMatch && priorityMatch && categoryMatch && assigneeMatch && searchMatch) ? '' : 'none';
+        });
+    }
+});
+</script>
+
+<style>
+.tasks-container {
+    background-color: #f8f9fa;
+    min-height: calc(100vh - 60px);
+}
+
+.page-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 2rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+}
+
+.stats-card-body {
+    padding: 0;
+}
+
+.stats-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+}
+
+.stats-number {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #333;
+    line-height: 1;
+}
+
+.stats-label {
+    font-size: 0.875rem;
+    color: #666;
+    margin-top: 0.25rem;
+}
+
+.card {
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.avatar-circle-sm {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.task-info {
+    max-width: 400px;
+}
+
+.task-title {
+    font-size: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+.task-description {
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+    padding: 1rem 0.75rem;
+}
+
+.table td {
+    padding: 1rem 0.75rem;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background-color: rgba(0,0,0,0.025);
+}
+
+.badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 1.5rem;
+}
+
+.timeline-item {
+    position: relative;
+    padding-bottom: 1rem;
+}
+
+.timeline-item:before {
+    content: '';
+    position: absolute;
+    left: -1.5rem;
+    top: 0.5rem;
+    width: 2px;
+    height: calc(100% - 0.5rem);
+    background: #e9ecef;
+}
+
+.timeline-item:last-child:before {
+    display: none;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -1.75rem;
+    top: 0.25rem;
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 50%;
+    border: 2px solid white;
+    box-shadow: 0 0 0 2px currentColor;
+}
+
+.timeline-content h6 {
+    margin-bottom: 0.25rem;
+    font-size: 0.875rem;
+}
+
+.timeline-content p {
+    margin-bottom: 0;
+}
+
+.pagination-sm .page-link {
+    padding: 0.25rem 0.5rem;
+}
+
+.modal-xl {
+    max-width: 1200px;
+}
+
+.modal-lg {
+    max-width: 900px;
+}
+</style> 
