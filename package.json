@@ -25,10 +25,10 @@
     "db:migrate": "cd database && npm run migrate",
     "db:seed": "cd database && npm run seed",
     "db:reset": "cd database && npm run reset",
-    "docker:build": "docker-compose build",
-    "docker:up": "docker-compose up -d",
-    "docker:down": "docker-compose down",
-    "docker:logs": "docker-compose logs -f",
+    "docker:build": "docker compose build",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
     "setup": "npm install && npm run db:migrate && npm run db:seed"
   },
   "keywords": [

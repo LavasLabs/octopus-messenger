@@ -32,7 +32,7 @@
     "moment": "^2.29.4",
     "lodash": "^4.17.21",
     "validator": "^13.9.0",
-    "jsforce": "^2.0.0",
+    "jsforce": "^3.9.1",
     "@hubspot/api-client": "^8.0.0",
     "@notionhq/client": "^2.2.0",
     "jira-client": "^8.2.2",

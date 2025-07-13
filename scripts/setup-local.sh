@@ -85,7 +85,7 @@ install_dependencies() {
     npm install
     
     # 安装各个服务的依赖
-    services=("gateway" "message-processor" "ai-service" "task-service" "bot-manager" "admin-panel")
+    services=("gateway" "message-processor" "ai-service" "bot-manager" "admin-panel")
     
     for service in "${services[@]}"; do
         if [ -f "services/$service/package.json" ]; then
@@ -95,6 +95,9 @@ install_dependencies() {
             cd "../.."
         fi
     done
+    
+    # 跳过 task-service 的依赖安装，因为存在版本问题
+    echo "⚠️  跳过 task-service 依赖安装（存在版本冲突）"
     
     echo "✅ 依赖安装完成"
 }
@@ -138,7 +141,7 @@ start_services() {
     echo "🚀 启动所有服务..."
     
     # 启动所有服务
-    docker-compose up -d
+    docker compose up -d
     
     echo "⏳ 等待服务启动..."
     sleep 15
@@ -171,7 +174,7 @@ show_status() {
         service=$(echo $service_port | cut -d: -f1)
         port=$(echo $service_port | cut -d: -f2)
         
-        if docker-compose ps $service | grep -q "Up"; then
+        if docker compose ps $service | grep -q "Up"; then
             echo "✅ $service (端口 $port) - 运行中"
         else
             echo "❌ $service (端口 $port) - 停止"
@@ -211,10 +214,10 @@ main() {
     echo "🎉 本地开发环境设置完成！"
     echo ""
     echo "💡 有用的命令："
-    echo "• 查看日志: docker-compose logs -f [服务名]"
-    echo "• 停止所有服务: docker-compose down"
-    echo "• 重启服务: docker-compose restart [服务名]"
-    echo "• 清理并重新构建: docker-compose down -v && docker-compose up --build -d"
+    echo "• 查看日志: docker compose logs -f [服务名]"
+    echo "• 停止所有服务: docker compose down"
+    echo "• 重启服务: docker compose restart [服务名]"
+    echo "• 清理并重新构建: docker compose down -v && docker compose up --build -d"
     echo ""
     echo "📚 更多信息请查看 docs/ 目录中的文档"
 }
