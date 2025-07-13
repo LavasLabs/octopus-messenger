@@ -267,8 +267,13 @@ class APIClient {
                 hashValue: user.password_hash ? user.password_hash.substring(0, 10) + '...' : 'null'
             });
             
-            // 确保参数都是字符串
-            const password = String(credentials.password || '');
+            // 确保参数都是字符串 - 处理数组情况
+            let password = credentials.password;
+            if (Array.isArray(password)) {
+                // 如果是数组，取非空的值
+                password = password.find(p => p && p.trim()) || '';
+            }
+            password = String(password || '');
             const passwordHash = String(user.password_hash || '');
             
             if (!password || !passwordHash) {

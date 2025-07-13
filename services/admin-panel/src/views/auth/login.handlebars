@@ -90,10 +90,22 @@ document.addEventListener('DOMContentLoaded', function() {
         emailTab.checked = true;
         usernameForm.style.display = 'none';
         emailForm.style.display = 'block';
+        // 禁用用户名表单字段
+        document.getElementById('username').disabled = true;
+        document.getElementById('usernamePassword').disabled = true;
+        // 启用邮箱表单字段
+        document.getElementById('email').disabled = false;
+        document.getElementById('emailPassword').disabled = false;
     } else {
         usernameTab.checked = true;
         usernameForm.style.display = 'block';
         emailForm.style.display = 'none';
+        // 禁用邮箱表单字段
+        document.getElementById('email').disabled = true;
+        document.getElementById('emailPassword').disabled = true;
+        // 启用用户名表单字段
+        document.getElementById('username').disabled = false;
+        document.getElementById('usernamePassword').disabled = false;
     }
     
     // 切换事件
@@ -102,9 +114,14 @@ document.addEventListener('DOMContentLoaded', function() {
             usernameForm.style.display = 'block';
             emailForm.style.display = 'none';
             loginTypeInput.value = 'username';
-            // 清空邮箱表单
+            // 清空邮箱表单并禁用字段
             document.getElementById('email').value = '';
             document.getElementById('emailPassword').value = '';
+            document.getElementById('email').disabled = true;
+            document.getElementById('emailPassword').disabled = true;
+            // 启用用户名表单字段
+            document.getElementById('username').disabled = false;
+            document.getElementById('usernamePassword').disabled = false;
         }
     });
     
@@ -113,9 +130,14 @@ document.addEventListener('DOMContentLoaded', function() {
             emailForm.style.display = 'block';
             usernameForm.style.display = 'none';
             loginTypeInput.value = 'email';
-            // 清空用户名表单
+            // 清空用户名表单并禁用字段
             document.getElementById('username').value = '';
             document.getElementById('usernamePassword').value = '';
+            document.getElementById('username').disabled = true;
+            document.getElementById('usernamePassword').disabled = true;
+            // 启用邮箱表单字段
+            document.getElementById('email').disabled = false;
+            document.getElementById('emailPassword').disabled = false;
         }
     });
 });
