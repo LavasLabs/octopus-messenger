@@ -206,7 +206,7 @@ cp docs/env-template.txt .env
 3. 启动服务
 ```bash
 # 使用Docker（推荐）
-docker-compose up -d
+docker compose up -d
 
 # 或手动启动
 npm install

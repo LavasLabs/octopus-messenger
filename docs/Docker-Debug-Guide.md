@@ -6,7 +6,7 @@
 ```bash
 # 检查Docker版本
 docker --version
-docker-compose --version
+docker compose version
 
 # 确保版本要求：
 # Docker: 20.10.0+

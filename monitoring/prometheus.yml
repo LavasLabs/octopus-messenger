@@ -1,0 +1,80 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  # - "first_rules.yml"
+  # - "second_rules.yml"
+
+scrape_configs:
+  # Prometheus自身监控
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # 网关服务监控
+  - job_name: 'gateway'
+    static_configs:
+      - targets: ['gateway:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # 消息处理服务监控
+  - job_name: 'message-processor'
+    static_configs:
+      - targets: ['message-processor:3001']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # AI服务监控
+  - job_name: 'ai-service'
+    static_configs:
+      - targets: ['ai-service:3002']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # 任务服务监控
+  - job_name: 'task-service'
+    static_configs:
+      - targets: ['task-service:3003']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # Bot管理服务监控
+  - job_name: 'bot-manager'
+    static_configs:
+      - targets: ['bot-manager:3004']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # 管理面板监控
+  - job_name: 'admin-panel'
+    static_configs:
+      - targets: ['admin-panel:3005']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # 数据库监控
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    scrape_interval: 60s
+
+  # Redis监控
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    scrape_interval: 60s
+
+  # MongoDB监控
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb:27017']
+    scrape_interval: 60s
+
+  # Nginx监控
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+    metrics_path: '/nginx_status'
+    scrape_interval: 30s 

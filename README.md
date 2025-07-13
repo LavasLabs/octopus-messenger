@@ -206,7 +206,7 @@ cp docs/env-template.txt .env
 3. Start services
 ```bash
 # Using Docker (Recommended)
-docker-compose up -d
+docker compose up -d
 
 # Or manual startup
 npm install

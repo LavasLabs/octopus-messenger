@@ -1,205 +1,225 @@
-# ============================================
-# Octopus Messenger 环境配置文件
-# 复制此文件为 .env 并填入实际参数值
-# ============================================
-
-# 基础环境配置
+# 环境配置
 NODE_ENV=development
-PORT=3000
 
-# ============================================
-# 数据库配置（必需）
-# ============================================
+# 数据库配置 - PostgreSQL
+PG_HOST=localhost
+PG_PORT=5432
+PG_DATABASE=octopus_messenger
+PG_USERNAME=postgres
+PG_PASSWORD=Abc123123!
+PG_SCHEMA=public
+PG_SSL=false
+PG_POOL_MIN=2
+PG_POOL_MAX=10
+PG_POOL_IDLE=10000
 
-# PostgreSQL 数据库
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=octopus_messenger
-DB_USER=postgres
-DB_PASSWORD=请填入您的PostgreSQL密码
-DB_SSL=false
-DB_MAX_CONNECTIONS=20
-
-# Redis 缓存
+# 数据库配置 - Redis
 REDIS_HOST=localhost
 REDIS_PORT=6379
-REDIS_PASSWORD=
+REDIS_PASSWORD=Abc123123!
 REDIS_DB=0
+REDIS_KEY_PREFIX=octopus:
 
-# MongoDB（可选）
-MONGODB_URL=mongodb://localhost:27017/octopus_messenger
+# 数据库配置 - MongoDB
+MONGODB_URI=mongodb://localhost:27017/octopus_messenger
 
-# ============================================
-# 安全配置（必需）
-# ============================================
-
-# JWT密钥 - 请更改为复杂的随机字符串
-JWT_SECRET=请生成一个256位的随机密钥
-JWT_EXPIRES_IN=7d
-
-# 服务间通信密钥
-SERVICE_TOKEN=请生成一个服务间通信密钥
-
-# ============================================
 # 微服务端口配置
-# ============================================
-
 GATEWAY_PORT=3000
+GATEWAY_HOST=0.0.0.0
 MESSAGE_PROCESSOR_PORT=3001
+MESSAGE_PROCESSOR_HOST=0.0.0.0
 AI_SERVICE_PORT=3002
+AI_SERVICE_HOST=0.0.0.0
 TASK_SERVICE_PORT=3003
+TASK_SERVICE_HOST=0.0.0.0
 BOT_MANAGER_PORT=3004
+BOT_MANAGER_HOST=0.0.0.0
 ADMIN_PANEL_PORT=3005
+ADMIN_PANEL_HOST=0.0.0.0
 
-# ============================================
-# AI服务配置（必需至少一个）
-# ============================================
+# 认证配置
+JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
+JWT_EXPIRES_IN=24h
+JWT_REFRESH_EXPIRES_IN=7d
+SESSION_SECRET=your-session-secret-change-this-in-production
+SESSION_TIMEOUT=3600000
+BCRYPT_SALT_ROUNDS=12
 
-# OpenAI配置
-OPENAI_API_KEY=sk-请填入您的OpenAI API密钥
+# 安全配置
+CORS_ORIGINS=http://localhost:3000,http://localhost:3005
+TRUSTED_PROXIES=127.0.0.1
+ENCRYPTION_KEY=your-encryption-key-32-characters-long
+
+# 限流配置
+RATE_LIMIT_WINDOW=900000
+RATE_LIMIT_MAX=100
+RATE_LIMIT_SKIP_SUCCESS=false
+RATE_LIMIT_SKIP_FAILED=false
+
+# AI服务配置
+AI_OPENAI_ENABLED=true
+OPENAI_API_KEY=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
 OPENAI_MODEL=gpt-4
 OPENAI_MAX_TOKENS=1000
 OPENAI_TEMPERATURE=0.7
 
-# Claude配置（可选）
-CLAUDE_API_KEY=请填入您的Claude API密钥
-CLAUDE_MODEL=claude-3-sonnet-20240229
+AI_CLAUDE_ENABLED=false
+CLAUDE_API_KEY=your_claude_api_key
+CLAUDE_MODEL=claude-3-haiku-20240307
 CLAUDE_MAX_TOKENS=1000
+CLAUDE_TEMPERATURE=0.7
 
-# ============================================
-# Bot平台配置（可选）
-# ============================================
-
-# Telegram Bot
-TELEGRAM_ENABLED=false
-TELEGRAM_BOT_TOKEN=请从@BotFather获取token
+# 消息平台配置 - Telegram
+TELEGRAM_ENABLED=true
+TELEGRAM_BOT_TOKEN=AAEV9Hl5Di-n9k8HZbhfycOXAYvwlIt1e38
 TELEGRAM_WEBHOOK_URL=https://your-domain.com/api/webhooks/telegram
-TELEGRAM_SECRET_TOKEN=请设置一个secret token
+TELEGRAM_WEBHOOK_SECRET=your_telegram_webhook_secret
 
-# WhatsApp Business API
-WHATSAPP_ENABLED=false
-WHATSAPP_ACCESS_TOKEN=请从Facebook Developer获取
-WHATSAPP_PHONE_NUMBER_ID=请填入电话号码ID
-WHATSAPP_WEBHOOK_URL=https://your-domain.com/api/webhooks/whatsapp
-WHATSAPP_VERIFY_TOKEN=请设置验证token
-
-# Discord Bot
+# 消息平台配置 - Discord
 DISCORD_ENABLED=false
-DISCORD_BOT_TOKEN=请从Discord Developer Portal获取
-DISCORD_APPLICATION_ID=请从Discord Developer Portal获取
-DISCORD_PUBLIC_KEY=请从Discord Developer Portal获取
-DISCORD_CLIENT_ID=请从Discord Developer Portal获取
-DISCORD_CLIENT_SECRET=请从Discord Developer Portal获取
-DISCORD_GUILD_ID=服务器ID（可选，用于测试）
+DISCORD_BOT_TOKEN=your_discord_bot_token
+DISCORD_APPLICATION_ID=your_discord_application_id
+DISCORD_PUBLIC_KEY=your_discord_public_key
+DISCORD_CLIENT_ID=your_discord_client_id
+DISCORD_CLIENT_SECRET=your_discord_client_secret
+DISCORD_GUILD_ID=your_discord_guild_id
 DISCORD_WEBHOOK_URL=https://your-domain.com/api/webhooks/discord
 
-# Slack Bot
+# 消息平台配置 - Slack
 SLACK_ENABLED=false
-SLACK_BOT_TOKEN=xoxb-请从Slack App获取bot token
-SLACK_SIGNING_SECRET=请从Slack App获取signing secret
-SLACK_APP_TOKEN=xapp-请填入app token（如果使用Socket Mode）
-SLACK_SOCKET_MODE=false
+SLACK_BOT_TOKEN=your_slack_bot_token
+SLACK_SIGNING_SECRET=your_slack_signing_secret
+SLACK_CLIENT_ID=your_slack_client_id
+SLACK_CLIENT_SECRET=your_slack_client_secret
+SLACK_WEBHOOK_URL=https://your-domain.com/api/webhooks/slack
 
-# Line Bot
+# 消息平台配置 - WhatsApp
+WHATSAPP_ENABLED=false
+WHATSAPP_ACCESS_TOKEN=your_whatsapp_access_token
+WHATSAPP_PHONE_NUMBER_ID=your_whatsapp_phone_number_id
+WHATSAPP_WEBHOOK_VERIFY_TOKEN=your_whatsapp_webhook_verify_token
+WHATSAPP_WEBHOOK_URL=https://your-domain.com/api/webhooks/whatsapp
+
+# 消息平台配置 - Line
 LINE_ENABLED=false
-LINE_CHANNEL_ACCESS_TOKEN=请从Line Developer Console获取
-LINE_CHANNEL_SECRET=请从Line Developer Console获取
+LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
+LINE_CHANNEL_SECRET=your_line_channel_secret
 LINE_WEBHOOK_URL=https://your-domain.com/api/webhooks/line
 
-# 企业微信 Bot
+# 消息平台配置 - 企业微信
 WEWORK_ENABLED=false
-WEWORK_CORP_ID=请填入企业ID
-WEWORK_AGENT_ID=请填入应用ID
-WEWORK_SECRET=请填入应用Secret
+WEWORK_CORP_ID=your_wework_corp_id
+WEWORK_AGENT_ID=your_wework_agent_id
+WEWORK_SECRET=your_wework_secret
 WEWORK_WEBHOOK_URL=https://your-domain.com/api/webhooks/wework
-WEWORK_WEBHOOK_TOKEN=请设置webhook验证token
+WEWORK_WEBHOOK_TOKEN=your_wework_webhook_token
 
-# ============================================
-# CRM集成配置（可选）
-# ============================================
+# CRM系统配置 - Salesforce
+SALESFORCE_ENABLED=false
+SALESFORCE_CLIENT_ID=your_salesforce_client_id
+SALESFORCE_CLIENT_SECRET=your_salesforce_client_secret
+SALESFORCE_USERNAME=your_salesforce_username
+SALESFORCE_PASSWORD=your_salesforce_password
+SALESFORCE_SECURITY_TOKEN=your_salesforce_security_token
+SALESFORCE_INSTANCE_URL=https://login.salesforce.com
 
-# 飞书/Lark
-LARK_APP_ID=请从飞书开放平台获取
-LARK_APP_SECRET=请从飞书开放平台获取
-LARK_WEBHOOK_URL=请设置webhook URL
+# CRM系统配置 - HubSpot
+HUBSPOT_ENABLED=false
+HUBSPOT_API_KEY=your_hubspot_api_key
+HUBSPOT_ACCESS_TOKEN=your_hubspot_access_token
+HUBSPOT_PORTAL_ID=your_hubspot_portal_id
 
-# Salesforce
-SALESFORCE_CLIENT_ID=请从Salesforce Connected App获取
-SALESFORCE_CLIENT_SECRET=请从Salesforce Connected App获取
-SALESFORCE_USERNAME=您的Salesforce用户名
-SALESFORCE_PASSWORD=您的密码+安全令牌
+# CRM系统配置 - 飞书
+LARK_ENABLED=false
+LARK_APP_ID=cli_a8f93e69d9389029
+LARK_APP_SECRET=5QMIEiPWzvd7U1kqXHQCoPr8KqwxAakA
+LARK_BASE_URL=https://open.larksuite.com
 
-# HubSpot
-HUBSPOT_API_KEY=请从HubSpot获取API密钥
 
-# 钉钉
-DINGTALK_APP_KEY=请从钉钉开放平台获取
-DINGTALK_APP_SECRET=请从钉钉开放平台获取
+# CRM系统配置 - 钉钉
+DINGTALK_ENABLED=false
+DINGTALK_APP_KEY=your_dingtalk_app_key
+DINGTALK_APP_SECRET=your_dingtalk_app_secret
+DINGTALK_BASE_URL=https://oapi.dingtalk.com
 
-# 企业微信
-WEWORK_CORP_ID=请填入企业ID
-WEWORK_AGENT_ID=请填入应用ID
-WEWORK_SECRET=请填入应用Secret
+# CRM系统配置 - Notion
+NOTION_ENABLED=false
+NOTION_TOKEN=your_notion_token
+NOTION_DATABASE_ID=your_notion_database_id
 
-# ============================================
+# CRM系统配置 - Jira
+JIRA_ENABLED=false
+JIRA_HOST=your-company.atlassian.net
+JIRA_USERNAME=your_jira_username
+JIRA_API_TOKEN=your_jira_api_token
+JIRA_PROJECT_KEY=your_jira_project_key
+
 # 日志配置
-# ============================================
-
 LOG_LEVEL=info
-LOG_FILE=logs/app.log
-LOG_MAX_SIZE=20m
-LOG_MAX_FILES=5
-LOG_DATE_PATTERN=YYYY-MM-DD
+LOG_FORMAT=combined
+LOG_FILE_ENABLED=true
+LOG_FILE_NAME=logs/app.log
+LOG_FILE_MAX_SIZE=10m
+LOG_FILE_MAX_FILES=5
+LOG_CONSOLE_ENABLED=true
+LOG_CONSOLE_COLORIZE=true
 
-# ============================================
-# 安全和限流配置
-# ============================================
+# 队列配置
+QUEUE_REDIS_HOST=localhost
+QUEUE_REDIS_PORT=6379
+QUEUE_REDIS_PASSWORD=
+QUEUE_REDIS_DB=1
+QUEUE_REMOVE_ON_COMPLETE=10
+QUEUE_REMOVE_ON_FAIL=5
+QUEUE_ATTEMPTS=3
+QUEUE_BACKOFF_DELAY=2000
 
-# 跨域配置
-CORS_ORIGINS=http://localhost:3000,http://localhost:3005
+# 文件存储配置
+STORAGE_TYPE=local
+STORAGE_LOCAL_DIR=./uploads
+STORAGE_MAX_FILE_SIZE=10485760
 
-# 限流配置
-RATE_LIMIT_WINDOW=60000
-RATE_LIMIT_MAX_REQUESTS=100
+# AWS S3配置（如果使用S3存储）
+AWS_ACCESS_KEY_ID=your_aws_access_key_id
+AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
+AWS_REGION=us-east-1
+AWS_S3_BUCKET=your_s3_bucket_name
 
-# 安全配置
-HELMET_ENABLED=true
-CSRF_ENABLED=false
-
-# ============================================
 # 监控配置
-# ============================================
-
+MONITORING_ENABLED=true
+PROMETHEUS_ENABLED=true
 PROMETHEUS_PORT=9090
-GRAFANA_PORT=3001
+PROMETHEUS_PATH=/metrics
+HEALTH_CHECK_ENABLED=true
 HEALTH_CHECK_PATH=/health
 HEALTH_CHECK_INTERVAL=30000
 
-# ============================================
-# 邮件配置（可选）
-# ============================================
+# 缓存配置
+CACHE_TTL=3600
+CACHE_MAX=1000
+CACHE_UPDATE_AGE_ON_GET=true
 
+# 邮件配置
+EMAIL_ENABLED=false
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=请填入邮箱地址
-SMTP_PASSWORD=请填入邮箱密码或应用专用密码
-SMTP_FROM=noreply@your-domain.com
+SMTP_SECURE=true
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_email_password
+EMAIL_FROM=noreply@octopus-messenger.com
 
-# ============================================
-# 本地开发配置
-# ============================================
+# 多租户配置
+MULTI_TENANT_ENABLED=false
+DEFAULT_TENANT=default
+TENANT_HEADER=X-Tenant-ID
 
-# 开发调试
-DEBUG=octopus:*
-DEVELOPMENT_MODE=true
+# 服务间通信Token
+SERVICE_TOKEN=your_service_communication_token
 
-# 本地域名（用于webhook）
-LOCAL_DOMAIN=http://localhost:3000
-
-# ngrok URL（如果使用）
-LOCAL_NGROK_URL=https://your-random-id.ngrok.io
-
-# 开发环境跳过验证（谨慎使用）
-SKIP_WEBHOOK_VERIFICATION=false
-SKIP_AUTH_FOR_DEVELOPMENT=false 
+# 外部服务URL（用于服务间通信）
+MESSAGE_PROCESSOR_URL=http://localhost:3001
+AI_SERVICE_URL=http://localhost:3002
+TASK_SERVICE_URL=http://localhost:3003
+BOT_MANAGER_URL=http://localhost:3004
+ADMIN_PANEL_URL=http://localhost:3005
+CUSTOMER_SERVICE_URL=http://localhost:3006 
