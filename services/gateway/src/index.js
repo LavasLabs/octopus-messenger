@@ -12,7 +12,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const config = require('../../../config/config');
 const logger = require('./utils/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
-const authMiddleware = require('./middleware/auth');
+const { authenticateToken } = require('./middleware/auth');
 
 // 创建Express应用
 const app = express();
@@ -91,16 +91,16 @@ app.get('/health', (req, res) => {
 
 // API路由
 app.use('/api/auth', require('./routes/auth'));
-app.use('/api/users', authMiddleware, require('./routes/users'));
-app.use('/api/tenants', authMiddleware, require('./routes/tenants'));
-app.use('/api/bots', authMiddleware, require('./routes/bots'));
-app.use('/api/merchants', authMiddleware, require('./routes/merchants')); // 新增：商户管理路由
-app.use('/api/messages', authMiddleware, require('./routes/messages'));
-app.use('/api/tasks', authMiddleware, require('./routes/tasks'));
-app.use('/api/classifications', authMiddleware, require('./routes/classifications'));
-app.use('/api/ai', authMiddleware, require('./routes/ai'));
-app.use('/api/user-analytics', authMiddleware, require('./routes/userAnalytics'));
-app.use('/api/groups', authMiddleware, require('./routes/groupManagement'));
+app.use('/api/users', authenticateToken, require('./routes/users'));
+// app.use('/api/tenants', authenticateToken, require('./routes/tenants')); // 文件不存在，暂时注释
+app.use('/api/bots', authenticateToken, require('./routes/bots'));
+app.use('/api/merchants', authenticateToken, require('./routes/merchants')); // 新增：商户管理路由
+app.use('/api/messages', authenticateToken, require('./routes/messages'));
+app.use('/api/tasks', authenticateToken, require('./routes/tasks'));
+// app.use('/api/classifications', authenticateToken, require('./routes/classifications')); // 文件不存在，暂时注释
+app.use('/api/ai', authenticateToken, require('./routes/ai'));
+app.use('/api/user-analytics', authenticateToken, require('./routes/userAnalytics'));
+app.use('/api/groups', authenticateToken, require('./routes/groupManagement'));
 app.use('/api/webhooks', require('./routes/webhooks'));
 
 // 微服务代理配置
@@ -161,7 +161,7 @@ Object.keys(serviceProxies).forEach(path => {
     }
   };
 
-  app.use(path, authMiddleware, createProxyMiddleware(proxyOptions));
+  app.use(path, authenticateToken, createProxyMiddleware(proxyOptions));
 });
 
 // 错误处理中间件

@@ -18,9 +18,9 @@ const pool = new Pool({
 
 // 创建Redis客户端
 const redisClient = redis.createClient({
-  host: config.redis.host,
-  port: config.redis.port,
-  password: config.redis.password
+  host: config.database.redis.host,
+  port: config.database.redis.port,
+  password: config.database.redis.password
 });
 
 // JWT验证中间件

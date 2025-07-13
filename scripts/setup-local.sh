@@ -82,22 +82,46 @@ install_dependencies() {
     echo "📦 安装项目依赖..."
     
     # 安装根目录依赖
+    echo "📦 安装根目录依赖..."
     npm install
     
     # 安装各个服务的依赖
-    services=("gateway" "message-processor" "ai-service" "bot-manager" "admin-panel")
+    services=("gateway" "message-processor" "ai-service" "admin-panel")
     
     for service in "${services[@]}"; do
         if [ -f "services/$service/package.json" ]; then
             echo "📦 安装 $service 服务依赖..."
             cd "services/$service"
-            npm install
+            if npm install; then
+                echo "✅ $service 依赖安装成功"
+            else
+                echo "⚠️  $service 依赖安装失败，跳过"
+            fi
             cd "../.."
         fi
     done
     
-    # 跳过 task-service 的依赖安装，因为存在版本问题
-    echo "⚠️  跳过 task-service 依赖安装（存在版本冲突）"
+    # 单独处理 bot-manager，因为它有复杂的依赖
+    echo "📦 安装 bot-manager 服务依赖（可能需要较长时间）..."
+    cd "services/bot-manager"
+    if timeout 300 npm install; then
+        echo "✅ bot-manager 依赖安装成功"
+    else
+        echo "⚠️  bot-manager 依赖安装超时或失败"
+        echo "💡 您可以稍后手动安装: cd services/bot-manager && npm install"
+    fi
+    cd "../.."
+    
+    # 单独处理 task-service，因为存在版本问题
+    echo "📦 安装 task-service 服务依赖..."
+    cd "services/task-service"
+    if npm install; then
+        echo "✅ task-service 依赖安装成功"
+    else
+        echo "⚠️  task-service 依赖安装失败"
+        echo "💡 您可以稍后手动安装: cd services/task-service && npm install"
+    fi
+    cd "../.."
     
     echo "✅ 依赖安装完成"
 }
