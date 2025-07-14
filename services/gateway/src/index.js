@@ -13,6 +13,8 @@ const config = require('../../../config/config');
 const { logger } = require('./utils/logger');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { authenticateToken } = require('./middleware/auth');
+const ServiceDiscovery = require('./utils/ServiceDiscovery');
+const RouteManager = require('./utils/RouteManager');
 
 // 创建Express应用
 const app = express();

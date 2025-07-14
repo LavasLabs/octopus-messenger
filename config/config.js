@@ -50,6 +50,42 @@ const config = {
       }
     }
   },
+
+  // 对话管理配置
+  conversation: {
+    maxContextLength: parseInt(process.env.CONVERSATION_MAX_CONTEXT_LENGTH) || 4000,
+    summaryThreshold: parseInt(process.env.CONVERSATION_SUMMARY_THRESHOLD) || 10,
+    maxHistoryMessages: parseInt(process.env.CONVERSATION_MAX_HISTORY_MESSAGES) || 20
+  },
+
+  // 翻译服务配置
+  translation: {
+    enabled: process.env.TRANSLATION_ENABLED === 'true',
+    defaultProvider: process.env.TRANSLATION_DEFAULT_PROVIDER || 'openai',
+    
+    // OpenAI翻译配置
+    openai: {
+      apiKey: process.env.OPENAI_API_KEY,
+      model: process.env.TRANSLATION_OPENAI_MODEL || 'gpt-3.5-turbo'
+    },
+    
+    // DeepL配置
+    deepl: {
+      apiKey: process.env.DEEPL_API_KEY
+    },
+    
+    // Google翻译配置
+    google: {
+      apiKey: process.env.GOOGLE_TRANSLATE_API_KEY
+    },
+    
+    // 语言检测配置
+    languageDetection: {
+      enabled: process.env.LANGUAGE_DETECTION_ENABLED === 'true',
+      provider: process.env.LANGUAGE_DETECTION_PROVIDER || 'pattern',
+      apiKey: process.env.LANGUAGE_DETECTION_API_KEY
+    }
+  },
   
   // 微服务配置
   services: {
@@ -59,11 +95,18 @@ const config = {
     },
     messageProcessor: {
       port: process.env.MESSAGE_PROCESSOR_PORT || 3001,
-      host: process.env.MESSAGE_PROCESSOR_HOST || '0.0.0.0'
+      host: process.env.MESSAGE_PROCESSOR_HOST || '0.0.0.0',
+      enableAI: process.env.ENABLE_AI_PROCESSING !== 'false',
+      enableTranslation: process.env.ENABLE_TRANSLATION === 'true',
+      batchSize: parseInt(process.env.BATCH_SIZE) || 10,
+      processingTimeout: parseInt(process.env.PROCESSING_TIMEOUT) || 30000
     },
     aiService: {
       port: process.env.AI_SERVICE_PORT || 3002,
-      host: process.env.AI_SERVICE_HOST || '0.0.0.0'
+      host: process.env.AI_SERVICE_HOST || '0.0.0.0',
+      baseURL: process.env.AI_SERVICE_URL || 'http://localhost:3002',
+      timeout: 30000,
+      retries: 3
     },
     taskService: {
       port: process.env.TASK_SERVICE_PORT || 3003,
@@ -77,6 +120,20 @@ const config = {
       port: process.env.ADMIN_PANEL_PORT || 3005,
       host: process.env.ADMIN_PANEL_HOST || '0.0.0.0'
     }
+  },
+  
+  // 队列配置
+  queue: {
+    redis: {
+      host: process.env.REDIS_HOST || 'localhost',
+      port: process.env.REDIS_PORT || 6379,
+      password: process.env.REDIS_PASSWORD,
+      db: process.env.REDIS_DB || 0
+    },
+    concurrency: parseInt(process.env.QUEUE_CONCURRENCY) || 5,
+    attempts: parseInt(process.env.QUEUE_ATTEMPTS) || 3,
+    removeOnComplete: parseInt(process.env.QUEUE_REMOVE_ON_COMPLETE) || 100,
+    removeOnFail: parseInt(process.env.QUEUE_REMOVE_ON_FAIL) || 50
   },
   
   // 认证配置

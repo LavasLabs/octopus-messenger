@@ -16,6 +16,7 @@ const TaskManager = require('./managers/TaskManager');
 const CRMManager = require('./integrations/CRMManager');
 const DatabaseManager = require('./utils/DatabaseManager');
 const CacheManager = require('./utils/CacheManager');
+const CRMOptimizer = require('./utils/CRMOptimizer');
 
 // 创建Express应用
 const app = express();
@@ -266,6 +267,7 @@ let taskManager;
 let crmManager;
 let dbManager;
 let cacheManager;
+let crmOptimizer;
 
 // 初始化服务
 async function initializeService() {
@@ -281,6 +283,11 @@ async function initializeService() {
     cacheManager = new CacheManager(config.database.redis);
     await cacheManager.initialize();
     logger.info('Cache manager initialized');
+
+    // 初始化CRM优化器
+    crmOptimizer = new CRMOptimizer();
+    await crmOptimizer.initialize();
+    logger.info('CRM optimizer initialized');
 
     // 初始化CRM管理器
     crmManager = new CRMManager();

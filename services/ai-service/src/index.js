@@ -20,10 +20,14 @@ const ClassificationManager = require('./managers/ClassificationManager');
 // 导入工具
 const DatabaseManager = require('./utils/DatabaseManager');
 const CacheManager = require('./utils/CacheManager');
+const MongoDBManager = require('./utils/MongoDBManager');
+const PerformanceOptimizer = require('./utils/PerformanceOptimizer');
 const NLPProcessor = require('./processors/NLPProcessor');
 const TenantModelManager = require('./managers/TenantModelManager');
 const TenantModeManager = require('./managers/TenantModeManager');
 const SmartClassificationManager = require('./managers/SmartClassificationManager');
+const ConversationManager = require('./managers/ConversationManager');
+const TranslationService = require('./services/TranslationService');
 
 // 创建Express应用
 const app = express();
@@ -211,15 +215,20 @@ app.use('/api/analytics', authMiddleware, require('./routes/analytics'));
 app.use('/api/tenant', authMiddleware, require('./routes/tenant'));
 app.use('/api/mode', authMiddleware, require('./routes/mode'));
 app.use('/api/smart-classify', authMiddleware, require('./routes/smart-classify'));
+app.use('/api/customer-service', authMiddleware, require('./routes/customer-service'));
 
 // 全局变量
 let classificationManager;
 let nlpProcessor;
 let dbManager;
+let mongoManager;
 let cacheManager;
+let performanceOptimizer;
 let tenantModelManager;
 let tenantModeManager;
 let smartClassificationManager;
+let conversationManager;
+let translationService;
 
 // 初始化服务
 async function initializeService() {
@@ -231,10 +240,28 @@ async function initializeService() {
     await dbManager.initialize();
     logger.info('Database manager initialized');
 
+    // 初始化MongoDB管理器
+    mongoManager = new MongoDBManager(config.database.mongodb);
+    await mongoManager.initialize();
+    logger.info('MongoDB manager initialized');
+
     // 初始化缓存管理器
     cacheManager = new CacheManager(config.database.redis);
     await cacheManager.initialize();
     logger.info('Cache manager initialized');
+
+    // 初始化性能优化器
+    performanceOptimizer = new PerformanceOptimizer({
+      dbManager,
+      cacheManager,
+      mongoManager
+    });
+    await performanceOptimizer.initialize();
+    logger.info('Performance optimizer initialized');
+
+    // 初始化翻译服务
+    translationService = new TranslationService(config.translation || {});
+    logger.info('Translation service initialized');
 
     // 初始化NLP处理器
     nlpProcessor = new NLPProcessor();
@@ -293,12 +320,22 @@ async function initializeService() {
     await classificationManager.initialize();
     logger.info('Classification manager initialized');
 
+    // 初始化对话管理器
+    conversationManager = new ConversationManager({
+      mongoManager,
+      translationService,
+      config: config.conversation || {}
+    });
+    await conversationManager.initialize();
+    logger.info('Conversation manager initialized');
+
     // 初始化智能分类管理器
     smartClassificationManager = new SmartClassificationManager({
       classificationManager,
       tenantModelManager,
       tenantModeManager,
       dbManager,
+      conversationManager,
       config
     });
     await smartClassificationManager.initialize();
@@ -308,10 +345,13 @@ async function initializeService() {
     app.locals.classificationManager = classificationManager;
     app.locals.nlpProcessor = nlpProcessor;
     app.locals.dbManager = dbManager;
+    app.locals.mongoManager = mongoManager;
     app.locals.cacheManager = cacheManager;
     app.locals.tenantModelManager = tenantModelManager;
     app.locals.tenantModeManager = tenantModeManager;
     app.locals.smartClassificationManager = smartClassificationManager;
+    app.locals.conversationManager = conversationManager;
+    app.locals.translationService = translationService;
 
     logger.info('AI Service initialized successfully');
   } catch (error) {

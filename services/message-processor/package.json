@@ -30,6 +30,7 @@
     "redis": "^4.6.0",
     "bull": "^4.10.4",
     "bullmq": "^4.1.0",
+    "express-validator": "^7.0.1",
     "multer": "^1.4.5-lts.1",
     "sharp": "^0.32.1",
     "node-cron": "^3.0.2",

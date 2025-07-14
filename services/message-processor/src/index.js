@@ -16,6 +16,7 @@ const MessageProcessor = require('./processors/MessageProcessor');
 const MessageQueue = require('./queues/MessageQueue');
 const DatabaseManager = require('./utils/DatabaseManager');
 const CacheManager = require('./utils/CacheManager');
+const StorageOptimizer = require('./utils/StorageOptimizer');
 
 // 创建Express应用
 const app = express();
@@ -86,6 +87,7 @@ let messageProcessor;
 let messageQueue;
 let dbManager;
 let cacheManager;
+let storageOptimizer;
 
 // 初始化服务
 async function initializeService() {
@@ -107,11 +109,17 @@ async function initializeService() {
     await messageQueue.initialize();
     logger.info('Message queue initialized');
 
+    // 初始化存储优化器
+    storageOptimizer = new StorageOptimizer();
+    await storageOptimizer.initialize();
+    logger.info('Storage optimizer initialized');
+
     // 初始化消息处理器
     messageProcessor = new MessageProcessor({
       dbManager,
       cacheManager,
       messageQueue,
+      storageOptimizer,
       config
     });
     await messageProcessor.initialize();

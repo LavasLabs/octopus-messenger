@@ -7,6 +7,7 @@ class SmartClassificationManager {
     this.tenantModelManager = options.tenantModelManager;
     this.tenantModeManager = options.tenantModeManager;
     this.dbManager = options.dbManager;
+    this.conversationManager = options.conversationManager;
     this.config = options.config || {};
     this.isInitialized = false;
   }
@@ -69,8 +70,22 @@ class SmartClassificationManager {
         }
 
         // 存储消息用于训练（如果启用数据保留）
-        if (tenantMode.config.dataRetention) {
+        if (tenantMode.config.dataRetention && this.conversationManager) {
           await this.storeMessageForTraining(tenantId, message, classificationResult);
+        }
+
+        // 检查是否需要人工介入
+        if (this.conversationManager && options.conversationId) {
+          const handoffCheck = await this.conversationManager.checkForHumanHandoff(
+            options.conversationId,
+            tenantId,
+            message.content,
+            classificationResult
+          );
+
+          classificationResult.needsHandoff = handoffCheck.needsHandoff;
+          classificationResult.handoffReason = handoffCheck.reason;
+          classificationResult.escalationType = handoffCheck.escalationType;
         }
       } else {
         // 普通模式：仅使用通用模型

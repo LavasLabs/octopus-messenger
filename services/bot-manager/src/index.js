@@ -24,6 +24,7 @@ const BotManager = require('./managers/BotManager');
 // 导入工具
 const DatabaseManager = require('./utils/DatabaseManager');
 const CacheManager = require('./utils/CacheManager');
+const PlatformOptimizer = require('./utils/PlatformOptimizer');
 
 // 创建Express应用
 const app = express();
@@ -379,6 +380,7 @@ app.use('/api/webhooks', require('./routes/webhooks'));
 let botManager;
 let dbManager;
 let cacheManager;
+let platformOptimizer;
 
 // 初始化服务
 async function initializeService() {
@@ -395,10 +397,16 @@ async function initializeService() {
     await cacheManager.initialize();
     logger.info('Cache manager initialized');
 
+    // 初始化平台优化器
+    platformOptimizer = new PlatformOptimizer();
+    await platformOptimizer.initialize();
+    logger.info('Platform optimizer initialized');
+
     // 初始化Bot管理器
     botManager = new BotManager({
       dbManager,
       cacheManager,
+      platformOptimizer,
       config
     });
 

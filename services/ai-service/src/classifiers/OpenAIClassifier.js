@@ -120,34 +120,52 @@ class OpenAIClassifier {
     prompt += `\n\n请返回JSON格式的分类结果，包含：
 - category: 分类类别
 - confidence: 置信度 (0-1)
-- priority: 优先级 (high/medium/low)
+- escalate: 是否需要人工介入 (true/false)
+- reason: 分类原因的简短说明
+- language: 检测到的语言（zh/en/ja/ko/ru等）
+- urgency: 紧急程度 (low/medium/high/urgent)
 - sentiment: 情感倾向 (positive/negative/neutral)
-- reasoning: 分类理由
 - keywords: 关键词数组
-- suggested_response: 建议回复（如果适用）`;
+- suggested_action: 建议的处理方式（如果需要人工介入，说明原因）`;
 
     return prompt;
   }
 
   getSystemPrompt(categories) {
     const defaultCategories = [
-      'support', 'sales', 'complaint', 'inquiry', 'feedback',
-      'appointment', 'urgent', 'spam', 'other'
+      'support', 'sales', 'complaint', 'billing', 'technical', 
+      'permission', 'refund', 'inquiry', 'urgent', 'general'
     ];
 
     const availableCategories = categories || defaultCategories;
 
-    return `你是一个专业的客服消息分类助手。你的任务是分析客户消息并准确分类。
+    return `你是"Lava Assistant"，一名专业信用卡和支付领域的客服专家。
+你的任务是分析客户消息并进行准确分类，同时判断是否需要人工介入。
 
 分类标准：
 - support: 技术支持、产品问题、使用帮助
-- sales: 销售咨询、产品询价、购买意向
-- complaint: 投诉、不满、问题反馈
+- sales: 销售咨询、产品询价、购买意向  
+- complaint: 投诉、不满、服务问题
+- billing: 账单问题、费用查询、扣费疑问
+- technical: 技术故障、系统问题、登录问题
+- permission: 需要特殊权限的操作（额度调整、账户修改等）
+- refund: 退款申请、退费咨询
 - inquiry: 一般咨询、信息查询
-- feedback: 意见反馈、建议、评价
-- appointment: 预约、约定时间
 - urgent: 紧急情况、需要立即处理
-- spam: 垃圾消息、广告、无关内容
+- general: 其他一般性问题
+
+人工介入判断标准：
+- 涉及账户权限修改、信用额度调整
+- 退款、投诉、法律纠纷相关
+- 复杂的技术问题超出AI能力范围
+- 检测到强烈不满情绪或威胁性语言
+- 需要查看敏感信息或执行高风险操作
+
+语言检测：
+- 自动识别客户使用的语言（中文、英文、日文、韩文、俄文等）
+- 当客户使用非中文时，AI应切换到对应语言回复
+
+请始终以JSON格式回复，包含完整的分析结果。
 - other: 其他无法归类的消息
 
 可用分类: ${availableCategories.join(', ')}
