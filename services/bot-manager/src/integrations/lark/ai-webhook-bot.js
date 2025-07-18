@@ -156,7 +156,8 @@ app.post('/webhook', async (req, res) => {
     console.log('请求头:', JSON.stringify(req.headers, null, 2));
     console.log('请求体:', JSON.stringify(req.body, null, 2));
     
-    const { challenge, type, event } = req.body;
+    const { challenge, header, event } = req.body;
+    const type = header ? header.event_type : undefined;
     
     // URL验证挑战
     if (type === 'url_verification') {
@@ -167,17 +168,22 @@ app.post('/webhook', async (req, res) => {
     }
     
     // 处理消息事件
-    if (type === 'event_callback' && event) {
-      const { type: eventType, message } = event;
+    console.log('🔍 检查事件类型:', type);
+    if (type === 'im.message.receive_v1' && event) {
+      const eventType = header.event_type;
+        const { message } = event;
       
       if (eventType === 'im.message.receive_v1' && message) {
-        const { chat_id, content, message_type, sender } = message;
+        console.log('🔍 处理消息事件:', eventType);
+        console.log('📝 消息详情:', JSON.stringify(message, null, 2));
+        const { chat_id, content, message_type } = message;
+	const { sender } = event;
         
         // 只处理文本消息，且不是机器人自己发的
-        if (message_type === 'text' && sender.sender_type === 'user') {
+        if (message_type === 'text' && event.sender.sender_type && event.sender.sender_type === 'user') {
           const textContent = JSON.parse(content);
           const userMessage = textContent.text;
-          const userName = sender.sender_id.user_id || 'User';
+          const userName = event.sender.sender_id.user_id || 'User';
           
           console.log(`👤 [${userName}]: ${userMessage}`);
           console.log(`💬 Chat ID: ${chat_id}`);
@@ -201,8 +207,8 @@ app.post('/webhook', async (req, res) => {
   }
 });
 
-app.listen(port, '127.0.0.1', () => {
-  console.log(`🚀 Lark AI Bot服务器启动: http://127.0.0.1:${port}`);
+app.listen(port, '0.0.0.0', () => {
+  console.log(`🚀 Lark AI Bot服务器启动: http://0.0.0.0:${port}`);
   console.log(`🤖 AI模型: ${config.openai.model}`);
   console.log(`📡 Webhook端点: /webhook`);
   console.log(`💚 健康检查: /health`);
@@ -215,4 +221,4 @@ app.listen(port, '127.0.0.1', () => {
 process.on('SIGINT', () => {
   console.log('\n⏹️ 停止服务器');
   process.exit(0);
-});
+}); 
