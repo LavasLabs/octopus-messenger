@@ -1,0 +1,26 @@
+{
+  "name": "telegram-ai-bot",
+  "version": "1.0.0",
+  "description": "Telegram AI Bot integration with OpenAI GPT-4o",
+  "main": "ai-webhook-bot.js",
+  "scripts": {
+    "start": "node ai-webhook-bot.js",
+    "dev": "node ai-webhook-bot.js",
+    "setup": "./start-telegram-ai.sh"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "openai": "^4.20.0"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "ai",
+    "openai",
+    "webhook",
+    "chatbot"
+  ],
+  "author": "Z-Bot Team",
+  "license": "MIT"
+} 

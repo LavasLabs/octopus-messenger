@@ -1,0 +1,29 @@
+{
+  "name": "lark-ai-bot",
+  "version": "1.0.0",
+  "description": "Lark AI Bot with OpenAI integration",
+  "main": "ai-webhook-bot.js",
+  "scripts": {
+    "start": "node ai-webhook-bot.js",
+    "dev": "nodemon ai-webhook-bot.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "lark",
+    "feishu",
+    "bot",
+    "ai",
+    "openai",
+    "webhook"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "axios": "^1.6.0",
+    "openai": "^4.20.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+} 
